@@ -93,6 +93,10 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .mediawell{position:absolute;top:0;left:0;right:0;height:72%;overflow:hidden;border-bottom:1px solid var(--border);transition:height .46s var(--ease)}
 .card.open .mediawell{height:46%}
 .mediawell img{width:100%;height:100%;object-fit:cover;object-position:50% 14%;filter:saturate(.92) contrast(1.05);display:block}
+.card.veto,.livecard.veto{border-color:var(--red);box-shadow:0 0 0 1px var(--red),0 0 22px color-mix(in srgb,var(--red) 45%,transparent)}
+.card.veto .mediawell img,.livecard.veto img.hero{filter:saturate(.35) contrast(1.02) brightness(.72)}
+.card.veto::after{content:"";position:absolute;inset:0;background:color-mix(in srgb,var(--red) 16%,transparent);pointer-events:none;z-index:1}
+.vetoflag{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;background:var(--red);color:#fff;font-family:var(--font-ident);font-size:12px;letter-spacing:.22em;font-weight:700;padding:5px 14px;border-radius:4px;box-shadow:0 2px 10px rgba(0,0,0,.45)}
 .mediafade{position:absolute;left:0;right:0;bottom:0;height:70px;background:linear-gradient(180deg,transparent,var(--panel));pointer-events:none}
 .badge{position:absolute;top:10px;z-index:3;background:color-mix(in srgb, var(--ink) 82%, transparent);border-radius:2px;padding:4px 9px;font-family:var(--font-ident)}
 .badge.rank{left:10px;font-size:11px;letter-spacing:.16em;color:var(--fg-2);border:1px solid var(--border)}
@@ -277,7 +281,9 @@ function studiosOf(f){ let v; for(const k of BRAND_KEYS){ if(f[k]!=null){v=f[k];
 let PERF=[],VOTES=[],voter=null,mode="batch",tierIdx=0,deckIdx=0,detailId=null,deckExpanded=false;
 let showReview=false,showMethod=false,showIdentity=false,showSheet=false,status="",dragging=false,progression=false;
 const voteMap=new Map();
-function reindex(){ voteMap.clear(); for(const v of VOTES){ const w=v.fields.Voter,l=(v.fields.Performer||[])[0],s=n0(v.fields.Stars); if(w&&l)voteMap.set(w+"|"+l,{id:v.id,stars:s}); } }
+const vetoSet=new Set();
+function reindex(){ voteMap.clear(); vetoSet.clear(); for(const v of VOTES){ const w=v.fields.Voter,l=(v.fields.Performer||[])[0],s=n0(v.fields.Stars); if(w&&l)voteMap.set(w+"|"+l,{id:v.id,stars:s}); if(l&&v.fields.veto)vetoSet.add(l); } }
+const isVetoed=id=>vetoSet.has(id);
 const myStars=id=>voter?((voteMap.get(voter+"|"+id)||{}).stars||0):0;
 const spend=v=>{ const who=v||voter; if(!who)return 0; return Array.from(voteMap.entries()).filter(([k])=>k.startsWith(who+"|")).reduce((a,[,x])=>a+x.stars,0); };
 const totalStars=id=>VOTERS.reduce((a,w)=>a+((voteMap.get(w+"|"+id)||{}).stars||0),0);
@@ -365,8 +371,9 @@ function perfCard(o){
   const f=o.p.fields,id=o.p.id,s=o.s,open=detailId===id,tc=tierColorOf(o.tier),fl=filmed(s.sceneDays),mine=myStars(id),list=studiosOf(f);
   const img=E("img",{src:f.Headshot?encodeURI(f.Headshot):"",alt:""}); if(!f.Headshot)img.setAttribute("data-broken","");
   const toggle=()=>{ detailId=open?null:id; render(); };
-  return E("div",{class:"card"+(open?" open":"")+(mine>0?" starred":"")},
+  return E("div",{class:"card"+(open?" open":"")+(mine>0?" starred":"")+(isVetoed(id)?" veto":"")},
     E("div",{class:"mediawell"},img,E("div",{class:"mediafade"})),
+    isVetoed(id)?E("div",{class:"vetoflag"},"VETOED"):null,
     E("div",{class:"badge rank"},"RANK "+o.rank),
     E("div",{class:"badge val",style:"color:"+tc+";border-color:"+tc},String(s.value)),
     E("div",{class:"scrim"}),
@@ -419,7 +426,7 @@ function renderDeck(rk){
   const setExp=v=>{ deckExpanded=v; more.classList.toggle("open",v); tri.classList.toggle("open",v); };
   tri.addEventListener("pointerdown",e=>e.stopPropagation());
   tri.addEventListener("click",e=>{ e.stopPropagation(); setExp(!deckExpanded); });
-  const live=E("div",{class:"livecard"},img,E("div",{class:"badge rank",style:"top:12px;left:12px"},"RANK "+o.rank),E("div",{class:"badge val",style:"top:12px;right:12px;color:"+tc+";border-color:"+tc},String(s.value)),stamp,info);
+  const live=E("div",{class:"livecard"+(isVetoed(id)?" veto":"")},img,E("div",{class:"badge rank",style:"top:12px;left:12px"},"RANK "+o.rank),E("div",{class:"badge val",style:"top:12px;right:12px;color:"+tc+";border-color:"+tc},String(s.value)),isVetoed(id)?E("div",{class:"vetoflag"},"VETOED"):null,stamp,info);
   info.querySelectorAll("a").forEach(a=>a.addEventListener("pointerdown",e=>e.stopPropagation()));
   let sx=0,dx=0,down=false;
   live.addEventListener("pointerdown",e=>{ down=true;dragging=true;sx=e.clientX;dx=0;live.setPointerCapture&&live.setPointerCapture(e.pointerId);live.style.transition="none";live.style.cursor="grabbing"; });
@@ -437,7 +444,7 @@ function renderDeck(rk){
 
 /* ================= STANDINGS ================= */
 function renderStandings(rk){
-  const rows=rk.filter(o=>totalStars(o.p.id)>0).map(o=>({o,total:totalStars(o.p.id)})).sort((a,b)=>b.total-a.total||b.o.s.value-a.o.s.value);
+  const rows=rk.filter(o=>!isVetoed(o.p.id)&&totalStars(o.p.id)>0).map(o=>({o,total:totalStars(o.p.id)})).sort((a,b)=>b.total-a.total||b.o.s.value-a.o.s.value);
   const sum=VOTERS.map(v=>v.toUpperCase()+" "+spend(v)+" / 50").join("  ·  ");
   const wrap=E("div",{class:"standshell"},E("div",{class:"standhdr"},E("h2",null,"STANDINGS"),E("div",{class:"sum"},sum)));
   if(!rows.length){ wrap.append(E("div",{class:"loadline",style:"text-align:left;padding:20px 0"},"No stars cast yet.")); return wrap; }
