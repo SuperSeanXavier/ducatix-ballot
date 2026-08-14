@@ -137,7 +137,7 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .studios{display:flex;flex-wrap:wrap;align-content:flex-start;gap:5px;height:24px;overflow:hidden;transition:height .46s var(--ease)}
 .card.open .studios{height:53px}
 .chip{font-family:var(--font-ident);font-size:12px;letter-spacing:.14em;height:24px;line-height:14px;padding:4px 8px;border-radius:2px;white-space:nowrap;border:1px solid}
-.falconchip{background:var(--red);color:#fff;border-color:var(--red);font-weight:700}
+.falconchip{background:transparent;color:var(--red);border-color:var(--red)}
 .morebtn{font-family:var(--font-ident);font-weight:600;font-size:12px;letter-spacing:.14em;height:24px;padding:0 8px;border-radius:2px;background:transparent;border:1px solid var(--border-soft);color:var(--fg-3)}
 .lastposted{font-size:13px;color:var(--fg-3);padding-left:16px;margin-bottom:8px}
 .linkchips{display:flex;flex-wrap:wrap;gap:6px}
@@ -492,7 +492,7 @@ function perfCard(o){
   return E("div",{class:"card"+(open?" open":"")+(mine>0?" starred":"")+(isVetoed(id)?" veto":"")},
     E("div",{class:"mediawell"},img,E("div",{class:"mediafade"})),
     isVetoed(id)?E("div",{class:"vetoflag"},"VETOED"):null,
-    isHP(f)?null:E("div",{class:"badge rank"},"RANK "+o.rank),
+    E("div",{class:"badge rank"},"RANK "+o.rank),
     valBadge(f,s,tc),
     E("div",{class:"scrim"}),
     E("div",{class:"datacol"},
@@ -566,7 +566,7 @@ function renderDeck(rk){
   const setExp=v=>{ deckExpanded=v; more.classList.toggle("open",v); tri.classList.toggle("open",v); };
   tri.addEventListener("pointerdown",e=>e.stopPropagation());
   tri.addEventListener("click",e=>{ e.stopPropagation(); setExp(!deckExpanded); });
-  const live=E("div",{class:"livecard"+(isVetoed(id)?" veto":"")},img,isHP(f)?null:E("div",{class:"badge rank",style:"top:12px;left:12px"},"RANK "+o.rank),valBadge(f,s,tc,"top:12px;right:12px;"),isVetoed(id)?E("div",{class:"vetoflag"},"VETOED"):null,stamp,info);
+  const live=E("div",{class:"livecard"+(isVetoed(id)?" veto":"")},img,E("div",{class:"badge rank",style:"top:12px;left:12px"},"RANK "+o.rank),valBadge(f,s,tc,"top:12px;right:12px;"),isVetoed(id)?E("div",{class:"vetoflag"},"VETOED"):null,stamp,info);
   info.querySelectorAll("a").forEach(a=>a.addEventListener("pointerdown",e=>e.stopPropagation()));
   let sx=0,dx=0,down=false;
   live.addEventListener("pointerdown",e=>{ down=true;dragging=true;sx=e.clientX;dx=0;live.setPointerCapture&&live.setPointerCapture(e.pointerId);live.style.transition="none";live.style.cursor="grabbing"; });
@@ -597,7 +597,7 @@ function renderStandings(rk){
     const cells=VOTERS.map(v=>{ const st=(voteMap.get(v+"|"+id)||{}).stars||0; return E("div",{class:"vcell"+(st>0?" did":"")},E("div",{class:"vi"},v[0]),E("div",{class:"vs",style:st>0?"":"color:var(--fg-3)"},st>0?String(st):"—")); });
     const toggle=()=>{ standId=open?null:id; render(); };
     const meta=vet?E("div",{class:"meta",style:"color:var(--red)"},"VETOED · STARS RETURNED · "+fmtNum(o.s.reach)+" REACH")
-      :isHP(f)?E("div",{class:"meta",style:"color:var(--red)"},"HAND PICKED · "+String(f.Badge).toUpperCase()+" · HIGH · "+fmtNum(o.s.reach)+" REACH")
+      :isHP(f)?E("div",{class:"meta",style:"color:var(--red)"},"RANK "+o.rank+" · HAND PICKED · "+String(f.Badge).toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH")
       :E("div",{class:"meta",style:"color:"+tc},"RANK "+o.rank+" · "+o.tier.toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH");
     const nameRow=E("div",{class:"nmrow"},E("div",{class:"nm"},f.Name),fp?E("span",{class:"fppill"},"FALCON PROD ELIGIBLE"):null);
     const detail=open?E("div",{class:"standdetail"},
