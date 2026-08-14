@@ -10,7 +10,7 @@
 <style>
 :root{
   --ink:#07090E; --panel:#10131C; --panel-2:#161A26;
-  --blue:#19E3FF; --violet:#A24BFF; --red:#FF3B5C; --white:#FFFFFF;
+  --blue:#19E3FF; --violet:#A24BFF; --red:#FF3B5C; --white:#FFFFFF; --amber:#FF9F1C;
   --fg-1:#F4F6FA; --fg-2:#AEB4C2; --fg-3:#6C7383; --fg-on-bright:#07090E;
   --border:rgba(255,255,255,.14); --border-soft:rgba(255,255,255,.08);
   --border-blue:color-mix(in srgb, var(--blue) 40%, transparent);
@@ -326,7 +326,7 @@ function filmed(sd){ if(sd==null)return {t:"No film on file",c:"var(--fg-3)"}; i
 function posted(pd){ return pd==null?"No active socials":"Posted "+elapsed(pd)+" ago"; }
 function studioLabel(v){ return String(v).replace(/([a-z0-9])([A-Z])/g,"$1 $2").toUpperCase(); }
 function studioColor(v){ const s=String(v).toLowerCase();
-  if(/nasty/.test(s))return "var(--red)"; if(/ducati\s*orig/.test(s))return "var(--blue)"; if(/choice/.test(s))return "var(--violet)";
+  if(/nasty/.test(s))return "var(--amber)"; if(/ducati\s*orig/.test(s))return "var(--blue)"; if(/choice/.test(s))return "var(--violet)";
   if(/bondage/.test(s))return "color-mix(in srgb, var(--blue) 55%, var(--white))"; if(/gentle/.test(s))return "var(--violet)"; if(/\bttb\b/.test(s))return "var(--white)"; if(/falcon/.test(s))return "var(--red)"; return "var(--fg-2)"; }
 const BRAND_KEYS=["Brands","Brand","Sub-brands","Sub brands","Brands filmed","Filmed with"];
 const STUDIOS=["DucatiOriginals","Falcon","BondageBros","ChoiceFilmz","DaddyPatrick","GentlemensCloset","JohnnyRapid","NastyDaddy","TrailerTrashBoys"];
