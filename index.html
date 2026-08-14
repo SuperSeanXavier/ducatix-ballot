@@ -250,6 +250,8 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .mfac .fn{font-family:var(--font-ident);font-weight:600;font-size:14px;letter-spacing:.18em;color:var(--fg-1)}
 .mfac .fd{font-size:13px;color:var(--fg-3);margin-top:2px}
 .mdiv{border-top:1px solid var(--border-soft)}
+.mnote{font-size:13px;line-height:1.5;color:var(--fg-2);background:color-mix(in srgb,var(--red) 8%,transparent);border:1px solid color-mix(in srgb,var(--red) 30%,transparent);border-radius:4px;padding:12px 14px}
+.mnote b{color:var(--red);letter-spacing:.06em}
 .mtiers .lbl{font-family:var(--font-ident);font-size:10px;letter-spacing:.26em;color:var(--fg-3);margin-bottom:10px}
 .mtier{display:flex;align-items:center;gap:10px;margin:8px 0}
 .mtier .tn{width:78px;font-family:var(--font-ident);font-weight:600;font-size:12px;letter-spacing:.18em}
@@ -367,6 +369,7 @@ function recomputeVeto(){ vetoSet.clear(); for(const [k,v] of voteMap){ if(v.vet
 function reindex(){ voteMap.clear(); for(const v of VOTES){ const w=v.fields.Voter,l=(v.fields.Performer||[])[0],s=n0(v.fields.Stars); if(w&&l)voteMap.set(w+"|"+l,{id:v.id,stars:s,veto:!!v.fields.veto}); } recomputeVeto(); }
 const isVetoed=id=>vetoSet.has(id);
 const myVeto=id=>voter?!!((voteMap.get(voter+"|"+id)||{}).veto):false;
+function vetoers(id){ const out=[]; for(const[k,v] of voteMap){ if(v.veto && k.slice(k.indexOf("|")+1)===id)out.push(k.slice(0,k.indexOf("|"))); } return out; }
 const myStars=id=>voter?((voteMap.get(voter+"|"+id)||{}).stars||0):0;
 const spend=v=>{ const who=v||voter; if(!who)return 0; return Array.from(voteMap.entries()).filter(([k])=>k.startsWith(who+"|")).reduce((a,[k,x])=>a+(isVetoed(k.slice(k.indexOf("|")+1))?0:x.stars),0); };
 const totalStars=id=>VOTERS.reduce((a,w)=>a+((voteMap.get(w+"|"+id)||{}).stars||0),0);
@@ -492,7 +495,7 @@ function perfCard(o){
   const toggle=()=>{ detailId=open?null:id; render(); };
   return E("div",{class:"card"+(open?" open":"")+(mine>0?" starred":"")+(isVetoed(id)?" veto":"")},
     E("div",{class:"mediawell"},img,E("div",{class:"mediafade"})),
-    isVetoed(id)?E("div",{class:"vetoflag"},"VETOED"):null,
+    isVetoed(id)?E("div",{class:"vetoflag"},"VETOED · "+vetoers(id).join(" & ").toUpperCase()):null,
     E("div",{class:"badge rank"},"RANK "+o.rank),
     valBadge(f,s,tc),
     E("div",{class:"scrim"}),
@@ -598,7 +601,7 @@ function renderStandings(rk){
     const img=E("img",{src:f.Headshot?encodeURI(f.Headshot):"",alt:""}); if(!f.Headshot)img.setAttribute("data-broken","");
     const cells=VOTERS.map(v=>{ const st=(voteMap.get(v+"|"+id)||{}).stars||0; return E("div",{class:"vcell"+(st>0?" did":"")},E("div",{class:"vi"},v[0]),E("div",{class:"vs",style:st>0?"":"color:var(--fg-3)"},st>0?String(st):"—")); });
     const toggle=()=>{ standId=open?null:id; render(); };
-    const meta=vet?E("div",{class:"meta",style:"color:var(--red)"},"VETOED · STARS RETURNED · "+fmtNum(o.s.reach)+" REACH")
+    const meta=vet?E("div",{class:"meta",style:"color:var(--red)"},"VETOED BY "+vetoers(id).join(" & ").toUpperCase()+" · STARS RETURNED · "+fmtNum(o.s.reach)+" REACH")
       :isHP(f)?E("div",{class:"meta",style:"color:var(--red)"},"RANK "+o.rank+" · HAND PICKED · "+String(f.Badge).toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH")
       :E("div",{class:"meta",style:"color:"+tc},"RANK "+o.rank+" · "+o.tier.toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH");
     const nameRow=E("div",{class:"nmrow"},E("div",{class:"nm"},f.Name),fp?E("span",{class:"fbox",title:"Falcon Prod Eligible"},"F"):null);
@@ -640,6 +643,7 @@ function methodModal(){ if(!showMethod)return null;
     ...FAC.map(([w,nm,ds,c])=>E("div",{class:"mfac"},E("div",{class:"w",style:"color:"+c},w),E("div",null,E("div",{class:"fn"},nm),E("div",{class:"fd"},ds)))),
     E("div",{class:"mdiv"}),
     E("div",{class:"mtiers"},E("div",{class:"lbl"},"TIERS"),...TR.map(([nm,c,r])=>E("div",{class:"mtier"},E("span",{class:"dot",style:"background:"+c+";box-shadow:0 0 10px "+c}),E("span",{class:"tn",style:"color:"+c},nm),E("span",{class:"tr"},r)))),
+    E("div",{class:"mnote"},E("b",null,"HAND PICKED"),document.createTextNode(" — added directly by a reviewer. Placed in High and scored on posting activity (45%) + audience size (35%) only, no ‘work with us’, then ranked among everyone by that score.")),
     E("button",{class:"ghost",style:"align-self:stretch;min-height:44px",onclick:()=>{showMethod=false;render();}},"CLOSE"));
   return E("div",{class:"overlay ov-method show",onclick:e=>{ if(e.target.classList.contains("overlay")){showMethod=false;render();} }},box);
 }
