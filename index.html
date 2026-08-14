@@ -443,8 +443,10 @@ function headerEl(){
       E("div",{class:"starsleft"},String(left),E("small",null,"STARS LEFT")),
       E("div",{class:"track"},E("i",{style:"width:"+pct+"%"})),
       E("div",{class:"cast"},used+" / "+BUDGET+" CAST"),
-      E("button",{class:"ghost",onclick:()=>{showReview=true;render();}},"REVIEW"),
-      modeCtl(["results","veto"]))
+      modeCtl(["veto"]),
+      E("div",{class:"modes"},
+        E("button",{onclick:()=>{showReview=true;render();}},"REVIEW"),
+        E("button",{class:mode==="results"?"on":"",onclick:()=>{mode="results";detailId=null;showSheet=false;render();}},"RESULTS")))
   );
   // mobile
   const m=E("div",{class:"hdrM"},E("div",{class:"mh"},
