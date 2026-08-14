@@ -132,6 +132,10 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .starbtns{display:flex;gap:8px}
 .starbtns button{flex:1;min-height:46px;font-family:var(--font-display);font-size:20px;border-radius:2px;background:transparent;color:var(--fg-3);border:1px solid var(--border);transition:background .16s,border-color .16s,color .16s}
 .starbtns button.on{background:var(--blue);color:var(--fg-on-bright);border-color:var(--blue)}
+.starbtns .vetobtn{flex:0 0 auto;padding:0 14px;font-family:var(--font-ident);font-size:12px;letter-spacing:.16em;color:var(--red);border-color:color-mix(in srgb,var(--red) 55%,transparent)}
+.starbtns .vetobtn.on{background:var(--red);color:#fff;border-color:var(--red)}
+.deckveto{width:100%;margin-top:10px;min-height:40px;border-radius:2px;background:transparent;border:1px solid color-mix(in srgb,var(--red) 55%,transparent);color:var(--red);font-family:var(--font-ident);font-size:13px;letter-spacing:.18em;cursor:pointer;transition:background .16s,color .16s,border-color .16s}
+.deckveto.on{background:var(--red);color:#fff;border-color:var(--red)}
 
 /* ---------- deck ---------- */
 .deckshell{max-width:520px;margin:0 auto}
@@ -282,8 +286,10 @@ let PERF=[],VOTES=[],voter=null,mode="batch",tierIdx=0,deckIdx=0,detailId=null,d
 let showReview=false,showMethod=false,showIdentity=false,showSheet=false,status="",dragging=false,progression=false;
 const voteMap=new Map();
 const vetoSet=new Set();
-function reindex(){ voteMap.clear(); vetoSet.clear(); for(const v of VOTES){ const w=v.fields.Voter,l=(v.fields.Performer||[])[0],s=n0(v.fields.Stars); if(w&&l)voteMap.set(w+"|"+l,{id:v.id,stars:s}); if(l&&v.fields.veto)vetoSet.add(l); } }
+function recomputeVeto(){ vetoSet.clear(); for(const [k,v] of voteMap){ if(v.veto)vetoSet.add(k.slice(k.indexOf("|")+1)); } }
+function reindex(){ voteMap.clear(); for(const v of VOTES){ const w=v.fields.Voter,l=(v.fields.Performer||[])[0],s=n0(v.fields.Stars); if(w&&l)voteMap.set(w+"|"+l,{id:v.id,stars:s,veto:!!v.fields.veto}); } recomputeVeto(); }
 const isVetoed=id=>vetoSet.has(id);
+const myVeto=id=>voter?!!((voteMap.get(voter+"|"+id)||{}).veto):false;
 const myStars=id=>voter?((voteMap.get(voter+"|"+id)||{}).stars||0):0;
 const spend=v=>{ const who=v||voter; if(!who)return 0; return Array.from(voteMap.entries()).filter(([k])=>k.startsWith(who+"|")).reduce((a,[,x])=>a+x.stars,0); };
 const totalStars=id=>VOTERS.reduce((a,w)=>a+((voteMap.get(w+"|"+id)||{}).stars||0),0);
@@ -306,9 +312,18 @@ function pickVoter(v){ voter=v; try{localStorage.setItem(LS_KEY,v);}catch(_){} s
 /* ================= VOTING ================= */
 async function setStars(id,nn){ if(!voter)return; const cur=myStars(id); let target=nn===cur?nn-1:nn; if(target<0)target=0; if(target>MAXPER)return;
   if(target>cur && spend()+(target-cur)>BUDGET){ toast((BUDGET-spend())+" stars left"); return; }
-  const key=voter+"|"+id, ex=voteMap.get(key); if(target===0)voteMap.delete(key); else voteMap.set(key,{id:ex&&ex.id,stars:target}); render();
-  try{ if(ex&&ex.id){ if(target===0)await atDel(CONFIG.VOTES,ex.id); else await atPatch(CONFIG.VOTES,ex.id,{Stars:target}); }
-       else if(target>0){ const name=(PERF.find(p=>p.id===id)||{}).fields.Name||""; const rec=await atPost(CONFIG.VOTES,{Key:voter+" | "+name,Voter:voter,Performer:[id],Stars:target}); voteMap.set(key,{id:rec.id,stars:target}); }
+  const key=voter+"|"+id, ex=voteMap.get(key), vt=!!(ex&&ex.veto);
+  if(target===0&&!vt)voteMap.delete(key); else voteMap.set(key,{id:ex&&ex.id,stars:target,veto:vt}); render();
+  try{ if(ex&&ex.id){ if(target===0&&!vt)await atDel(CONFIG.VOTES,ex.id); else await atPatch(CONFIG.VOTES,ex.id,{Stars:target}); }
+       else if(target>0){ const name=(PERF.find(p=>p.id===id)||{}).fields.Name||""; const rec=await atPost(CONFIG.VOTES,{Key:voter+" | "+name,Voter:voter,Performer:[id],Stars:target}); voteMap.set(key,{id:rec.id,stars:target,veto:false}); }
+       VOTES=await atList(CONFIG.VOTES); reindex();
+  }catch(e){ toast("Save failed"); try{VOTES=await atList(CONFIG.VOTES);reindex();}catch(_){} } render(); }
+
+async function setVeto(id){ if(!voter)return;
+  const key=voter+"|"+id, ex=voteMap.get(key), nv=!(ex&&ex.veto), st=(ex&&ex.stars)||0;
+  if(nv||st>0)voteMap.set(key,{id:ex&&ex.id,stars:st,veto:nv}); else voteMap.delete(key); recomputeVeto(); render();
+  try{ if(ex&&ex.id){ if(!nv&&st===0)await atDel(CONFIG.VOTES,ex.id); else await atPatch(CONFIG.VOTES,ex.id,{veto:nv}); }
+       else if(nv){ const name=(PERF.find(p=>p.id===id)||{}).fields.Name||""; const rec=await atPost(CONFIG.VOTES,{Key:voter+" | "+name,Voter:voter,Performer:[id],Stars:0,veto:true}); voteMap.set(key,{id:rec.id,stars:0,veto:true}); }
        VOTES=await atList(CONFIG.VOTES); reindex();
   }catch(e){ toast("Save failed"); try{VOTES=await atList(CONFIG.VOTES);reindex();}catch(_){} } render(); }
 
@@ -384,7 +399,7 @@ function perfCard(o){
       E("div",{class:"filmed"},E("span",{class:"dot",style:"background:"+fl.c+";color:"+fl.c}),fl.t),
       studioChips(list,open,toggle),
       linksDrawer(f),
-      E("div",{class:"starrow"},E("div",{class:"lbl"},"YOUR STARS"),E("div",{class:"starbtns"},...[1,2,3].map(nn=>E("button",{class:nn<=mine?"on":"",onclick:()=>setStars(id,nn)},String(nn)))))
+      E("div",{class:"starrow"},E("div",{class:"lbl"},"YOUR STARS"),E("div",{class:"starbtns"},...[1,2,3].map(nn=>E("button",{class:nn<=mine?"on":"",onclick:()=>setStars(id,nn)},String(nn))),E("button",{class:"vetobtn"+(myVeto(id)?" on":""),onclick:()=>setVeto(id)},myVeto(id)?"VETOED":"VETO")))
     ));
 }
 
@@ -437,9 +452,10 @@ function renderDeck(rk){
     E("button",{class:"prev",onclick:()=>{if(deckIdx>0){deckIdx--;render();}}},"PREV"),
     ...[1,2,3].map(nn=>E("button",{class:"star"+(nn<=mine?" on":""),onclick:()=>setStars(id,nn)},String(nn))),
     E("button",{class:"next",onclick:()=>{if(deckIdx<rk.length-1){deckIdx++;render();}}},"NEXT"));
+  const veto=E("button",{class:"deckveto"+(myVeto(id)?" on":""),onclick:()=>setVeto(id)},myVeto(id)?"✕ VETOED — TAP TO UNDO":"✕ VETO");
   return E("div",{class:"deckshell"},
     E("div",{class:"deckhdr"},E("div",{class:"prog"},(deckIdx+1)+" of "+rk.length+" · "+o.tier.toUpperCase()),E("div",{class:"prog"},"DRAG TO BROWSE")),
-    E("div",{class:"stack"},E("div",{class:"shadowcard"}),live),ctl,E("div",{class:"deckhint"},"DRAG TO MOVE · TAP 1 · 2 · 3 TO STAR · PASSING IS DEFAULT"));
+    E("div",{class:"stack"},E("div",{class:"shadowcard"}),live),ctl,veto,E("div",{class:"deckhint"},"DRAG TO MOVE · TAP 1 · 2 · 3 TO STAR · PASSING IS DEFAULT"));
 }
 
 /* ================= STANDINGS ================= */
