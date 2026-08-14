@@ -141,8 +141,8 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .deckinfo{position:absolute;left:0;right:0;bottom:0;padding:64px 16px 16px;display:flex;flex-direction:column;gap:9px;background:linear-gradient(180deg,transparent 0%,color-mix(in srgb,var(--ink) 45%,transparent) 24%,color-mix(in srgb,var(--ink) 88%,transparent) 46%,var(--ink) 64%);z-index:2}
 .deckbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 .deckbarL{display:flex;flex-direction:column;gap:9px;min-width:0}
-.deckmore{display:flex;flex-direction:column;gap:9px;max-height:0;opacity:0;overflow:hidden;transition:max-height .30s ease,opacity .22s ease,margin-bottom .30s ease;margin-bottom:0}
-.deckmore.open{max-height:420px;opacity:1;margin-bottom:9px}
+.deckmore{display:flex;flex-direction:column;gap:9px;max-height:0;opacity:0;overflow:hidden;transition:max-height .30s ease,opacity .22s ease,margin-top .30s ease;margin-top:0}
+.deckmore.open{max-height:420px;opacity:1;margin-top:9px}
 .deckexp{flex:0 0 auto;width:36px;height:36px;padding:0;border:1px solid var(--border);border-radius:4px;background:color-mix(in srgb,var(--ink) 55%,transparent);display:flex;align-items:center;justify-content:center;cursor:pointer}
 .deckexp::before{content:"";width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:8px solid var(--white);transition:transform .22s ease}
 .deckexp.open::before{transform:rotate(180deg)}
@@ -415,7 +415,7 @@ function renderDeck(rk){
       E("div",{class:"pname",style:"font-size:34px"},f.Name),
       E("div",{class:"reachrow",style:"border:none;padding:0"},E("div",{class:"reachnum",style:"font-size:26px"},fmtNum(s.reach)),E("div",{class:"reachlbl"},"TOTAL REACH"))),
     tri);
-  const info=E("div",{class:"deckinfo"},more,bar);
+  const info=E("div",{class:"deckinfo"},bar,more);
   const setExp=v=>{ deckExpanded=v; more.classList.toggle("open",v); tri.classList.toggle("open",v); };
   tri.addEventListener("pointerdown",e=>e.stopPropagation());
   tri.addEventListener("click",e=>{ e.stopPropagation(); setExp(!deckExpanded); });
