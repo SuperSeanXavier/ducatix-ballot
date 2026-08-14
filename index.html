@@ -221,7 +221,6 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .nmrow{display:flex;align-items:center;gap:8px;min-width:0}
 .nmrow .nm{flex:0 1 auto;min-width:0}
 .fppill{flex:none;background:var(--red);color:#fff;font-family:var(--font-ident);font-size:9.5px;font-weight:800;letter-spacing:.14em;padding:3px 7px;border-radius:2px;white-space:nowrap}
-.srow.fprod{border-color:color-mix(in srgb,var(--red) 40%,var(--border))}
 
 /* ---------- modals ---------- */
 .overlay{position:fixed;inset:0;display:none;place-items:center;padding:20px}
@@ -598,14 +597,14 @@ function renderStandings(rk){
     const meta=vet?E("div",{class:"meta",style:"color:var(--red)"},"VETOED · STARS RETURNED · "+fmtNum(o.s.reach)+" REACH")
       :isHP(f)?E("div",{class:"meta",style:"color:var(--red)"},"HAND PICKED · "+String(f.Badge).toUpperCase()+" · HIGH · "+fmtNum(o.s.reach)+" REACH")
       :E("div",{class:"meta",style:"color:"+tc},"RANK "+o.rank+" · "+o.tier.toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH");
-    const nameRow=E("div",{class:"nmrow"},E("div",{class:"nm"},f.Name),fp?E("span",{class:"fppill"},"FALCON PROD"):null);
+    const nameRow=E("div",{class:"nmrow"},E("div",{class:"nm"},f.Name),fp?E("span",{class:"fppill"},"FALCON PROD ELIGIBLE"):null);
     const detail=open?E("div",{class:"standdetail"},
       f.Headshot?E("div",{class:"standbigwrap"},E("img",{class:"standbig",src:encodeURI(f.Headshot),alt:f.Name})):null,
       platformDrawer(f,o.s.reach),
       E("div",{class:"filmed"},(()=>{const fl=filmed(o.s.sceneDays);return E("span",{class:"dot",style:"background:"+fl.c+";color:"+fl.c});})(),filmed(o.s.sceneDays).t),
       linkChips(f),
       E("div",{class:"standacts"},
-        E("button",{class:"fpbtn"+(fp?" on":""),onclick:()=>setFalconProd(id)},fp?"✦ FALCON PROD — ON":"✦ MARK FALCON PROD"),
+        E("button",{class:"fpbtn"+(fp?" on":""),onclick:()=>setFalconProd(id)},fp?"✦ FALCON PROD ELIGIBLE — ON":"✦ MARK FALCON PROD ELIGIBLE"),
         E("button",{class:"vetobtn"+(myVeto(id)?" on":""),onclick:()=>setVeto(id)},myVeto(id)?"✕ VETOED — TAP TO RESTORE":"✕ VETO — SEND TO BOTTOM"))
     ):null;
     wrap.append(E("div",{class:"srow"+(vet?" vetoed":"")+(open?" open":"")+(fp?" fprod":"")},
