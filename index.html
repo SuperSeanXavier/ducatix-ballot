@@ -293,8 +293,8 @@ img[data-broken]{opacity:.12}
    serverless route if a backend is added. Layout switches via CSS @media, not JS width checks. */
 const CONFIG={ BASE_ID:"appOVIIrtTP2JV7v8",
   TOKEN:"patve1k5AfRVlBHA5.a1ff888a635b89301fca5edf59a9486a378236b1b2299fc40d363cbf41fbdb21",
-  PERF:"Performers", VOTES:"Votes" };
-const VOTERS=["Trenton","Dan","Sean"];
+  PERF:"Performers", VOTES:"Votes", VTBL:"Voters" };
+let VOTERS=["Trenton","Dan","Sean"];   // fallback; replaced at load from the Voters table
 const BUDGET=50, MAXPER=3, HIGH_N=30, CUT_DAYS=395;   // hard cutoff: >~13 months since last scene drops off
 const NOW=new Date("2026-08-13");
 const LS_KEY="ducatix-ballot-voter";
@@ -326,7 +326,7 @@ function posted(pd){ return pd==null?"No active socials":"Posted "+elapsed(pd)+"
 function studioLabel(v){ return String(v).replace(/([a-z0-9])([A-Z])/g,"$1 $2").toUpperCase(); }
 function studioColor(v){ const s=String(v).toLowerCase();
   if(/nasty/.test(s))return "var(--red)"; if(/ducati\s*orig/.test(s))return "var(--blue)"; if(/choice/.test(s))return "var(--violet)";
-  if(/bondage/.test(s))return "color-mix(in srgb, var(--blue) 55%, var(--white))"; if(/gentle/.test(s))return "var(--violet)"; if(/\bttb\b/.test(s))return "var(--white)"; if(/falcon/.test(s))return "color-mix(in srgb, var(--red) 50%, var(--violet))"; return "var(--fg-2)"; }
+  if(/bondage/.test(s))return "color-mix(in srgb, var(--blue) 55%, var(--white))"; if(/gentle/.test(s))return "var(--violet)"; if(/\bttb\b/.test(s))return "var(--white)"; if(/falcon/.test(s))return "var(--red)"; return "var(--fg-2)"; }
 const BRAND_KEYS=["Brands","Brand","Sub-brands","Sub brands","Brands filmed","Filmed with"];
 const STUDIOS=["DucatiOriginals","Falcon","BondageBros","ChoiceFilmz","DaddyPatrick","GentlemensCloset","JohnnyRapid","NastyDaddy","TrailerTrashBoys"];
 function studiosOf(f){ let v; for(const k of BRAND_KEYS){ if(f[k]!=null){v=f[k];break;} } if(v==null)return []; if(Array.isArray(v))return v.filter(Boolean); return String(v).split(/[,;]/).map(s=>s.trim()).filter(Boolean); }
@@ -665,15 +665,27 @@ function render(){
 document.addEventListener("error",e=>{ const t=e.target; if(t&&t.tagName==="IMG")t.setAttribute("data-broken",""); },true);
 document.addEventListener("paste",handleGlobalPaste);
 
+/* ================= VOTERS (dynamic from Airtable) ================= */
+async function loadVoters(){ try{
+  const rows=await atList(CONFIG.VTBL);
+  const seen=new Set(),out=[];
+  rows.map(r=>({n:String(r.fields.Name||"").trim(),o:r.fields.Order}))
+      .filter(x=>x.n)
+      .sort((a,b)=>((a.o==null?1e9:a.o)-(b.o==null?1e9:b.o))||a.n.localeCompare(b.n))
+      .forEach(x=>{ const k=x.n.toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(x.n); } });
+  if(out.length)VOTERS=out;
+}catch(_){/* keep fallback */} }
+
 /* ================= BOOT ================= */
 (async function(){
   if(!CONFIG.TOKEN||CONFIG.TOKEN.includes("PASTE")){ status="Could not load — no token configured"; render(); return; }
   try{ if(window.matchMedia("(max-width:899px)").matches) mode="deck"; }catch(_){}   // mobile defaults to Deck
-  try{ const saved=localStorage.getItem(LS_KEY); if(saved&&VOTERS.includes(saved))voter=saved; else progression=true; }catch(_){ progression=true; }
   try{
+    await loadVoters();
+    try{ const saved=localStorage.getItem(LS_KEY); if(saved&&VOTERS.includes(saved))voter=saved; else progression=true; }catch(_){ progression=true; }
     const all=await atList(CONFIG.PERF); PERF=all.filter(p=>!p.fields.Sample);
     VOTES=await atList(CONFIG.VOTES); reindex(); status=""; render();
-    setInterval(async()=>{ if(detailId||dragging||showReview||showMethod||showIdentity)return; try{ VOTES=await atList(CONFIG.VOTES); reindex(); render(); }catch(_){} },20000);
+    setInterval(async()=>{ if(detailId||dragging||showReview||showMethod||showIdentity||showAdd)return; try{ VOTES=await atList(CONFIG.VOTES); reindex(); await loadVoters(); render(); }catch(_){} },20000);
   }catch(e){ status="Could not load — "+e.message; render(); }
 })();
 </script>
