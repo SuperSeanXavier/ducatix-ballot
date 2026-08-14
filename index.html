@@ -137,8 +137,15 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 @media(max-width:899px){.stack{height:calc(100dvh - 320px);min-height:300px;max-height:60vh}}
 .shadowcard{position:absolute;inset:14px -6px -14px -6px;background:var(--panel);border:1px solid var(--border-soft);border-radius:4px;opacity:.5}
 .livecard{position:absolute;inset:0;background:var(--panel);border:1px solid var(--border);border-radius:4px;box-shadow:var(--shadow-card);overflow:hidden;touch-action:none;cursor:grab}
-.livecard img.hero{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 8%;filter:saturate(.92) contrast(1.06);user-select:none}
+.livecard img.hero{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 0%;filter:saturate(.92) contrast(1.06);user-select:none}
 .deckinfo{position:absolute;left:0;right:0;bottom:0;padding:64px 16px 16px;display:flex;flex-direction:column;gap:9px;background:linear-gradient(180deg,transparent 0%,color-mix(in srgb,var(--ink) 45%,transparent) 24%,color-mix(in srgb,var(--ink) 88%,transparent) 46%,var(--ink) 64%);z-index:2}
+.deckbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.deckbarL{display:flex;flex-direction:column;gap:9px;min-width:0}
+.deckmore{display:flex;flex-direction:column;gap:9px;max-height:0;opacity:0;overflow:hidden;transition:max-height .30s ease,opacity .22s ease,margin-bottom .30s ease;margin-bottom:0}
+.deckmore.open{max-height:420px;opacity:1;margin-bottom:9px}
+.deckexp{flex:0 0 auto;width:36px;height:36px;padding:0;border:1px solid var(--border);border-radius:4px;background:color-mix(in srgb,var(--ink) 55%,transparent);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.deckexp::before{content:"";width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:8px solid var(--white);transition:transform .22s ease}
+.deckexp.open::before{transform:rotate(180deg)}
 .pcols{display:flex;gap:10px}
 .pcol{flex:1;border-top:2px solid;padding-top:6px}
 .pcol .pn{font-family:var(--font-ident);font-size:11px;letter-spacing:.16em;color:var(--fg-2)}
@@ -267,7 +274,7 @@ const BRAND_KEYS=["Brands","Brand","Sub-brands","Sub brands","Brands filmed","Fi
 function studiosOf(f){ let v; for(const k of BRAND_KEYS){ if(f[k]!=null){v=f[k];break;} } if(v==null)return []; if(Array.isArray(v))return v.filter(Boolean); return String(v).split(/[,;]/).map(s=>s.trim()).filter(Boolean); }
 
 /* ================= STATE ================= */
-let PERF=[],VOTES=[],voter=null,mode="batch",tierIdx=0,deckIdx=0,detailId=null;
+let PERF=[],VOTES=[],voter=null,mode="batch",tierIdx=0,deckIdx=0,detailId=null,deckExpanded=false;
 let showReview=false,showMethod=false,showIdentity=false,showSheet=false,status="",dragging=false,progression=false;
 const voteMap=new Map();
 function reindex(){ voteMap.clear(); for(const v of VOTES){ const w=v.fields.Voter,l=(v.fields.Performer||[])[0],s=n0(v.fields.Stars); if(w&&l)voteMap.set(w+"|"+l,{id:v.id,stars:s}); } }
@@ -397,13 +404,21 @@ function renderDeck(rk){
   const pcol=(nm,cnt,col,h,base)=>E(h?"a":"div",{class:"pcol",style:"border-color:"+col,...(h?{href:base+String(h).replace(/^@/,""),target:"_blank",rel:"noopener"}:{})},E("div",{class:"pn"},nm),E("div",{class:"pv"},fmtNum(cnt)));
   const stamp=E("div",{class:"stamp"},"NEXT");
   const stu=E("div",{class:"studios",style:"height:auto"}); const list=studiosOf(f); if(!list.length)stu.append(E("span",{class:"chip",style:"color:var(--fg-3);border-color:color-mix(in srgb,var(--fg-3) 45%,transparent)"},"UNRECORDED")); else list.forEach(v=>stu.append(chip(v)));
-  const info=E("div",{class:"deckinfo"},
-    E("div",{class:"pname",style:"font-size:34px"},f.Name),
-    E("div",{class:"reachrow",style:"border:none;padding:0"},E("div",{class:"reachnum",style:"font-size:26px"},fmtNum(s.reach)),E("div",{class:"reachlbl"},"TOTAL REACH")),
+  const more=E("div",{class:"deckmore"+(deckExpanded?" open":"")},
     E("div",{class:"pcols"},pcol("X",n0(f["X followers"]),"var(--white)",f["X handle"],"https://x.com/"),pcol("INSTAGRAM",n0(f["IG followers"]),"var(--violet)",f["IG handle"],"https://instagram.com/"),pcol("BLUESKY",n0(f["Bsky followers"]),"var(--blue)",f["Bsky handle"],"https://bsky.app/profile/")),
     linkChips(f),
     E("div",{class:"filmed"},E("span",{class:"dot",style:"background:"+fl.c+";color:"+fl.c}),fl.t),
     stu);
+  const tri=E("button",{class:"deckexp"+(deckExpanded?" open":""),"aria-label":"Toggle details"});
+  const bar=E("div",{class:"deckbar"},
+    E("div",{class:"deckbarL"},
+      E("div",{class:"pname",style:"font-size:34px"},f.Name),
+      E("div",{class:"reachrow",style:"border:none;padding:0"},E("div",{class:"reachnum",style:"font-size:26px"},fmtNum(s.reach)),E("div",{class:"reachlbl"},"TOTAL REACH"))),
+    tri);
+  const info=E("div",{class:"deckinfo"},more,bar);
+  const setExp=v=>{ deckExpanded=v; more.classList.toggle("open",v); tri.classList.toggle("open",v); };
+  tri.addEventListener("pointerdown",e=>e.stopPropagation());
+  tri.addEventListener("click",e=>{ e.stopPropagation(); setExp(!deckExpanded); });
   const live=E("div",{class:"livecard"},img,E("div",{class:"badge rank",style:"top:12px;left:12px"},"RANK "+o.rank),E("div",{class:"badge val",style:"top:12px;right:12px;color:"+tc+";border-color:"+tc},String(s.value)),stamp,info);
   info.querySelectorAll("a").forEach(a=>a.addEventListener("pointerdown",e=>e.stopPropagation()));
   let sx=0,dx=0,down=false;
