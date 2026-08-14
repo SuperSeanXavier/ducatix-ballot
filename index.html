@@ -134,7 +134,7 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .deckhdr{display:flex;justify-content:space-between;align-items:center;margin:22px 0 12px}
 .deckhdr .prog{font-family:var(--font-ident);font-size:11px;letter-spacing:.2em;color:var(--fg-3)}
 .stack{position:relative;height:620px}
-@media(max-width:899px){.stack{height:72vh}}
+@media(max-width:899px){.stack{height:calc(100dvh - 320px);min-height:300px;max-height:60vh}}
 .shadowcard{position:absolute;inset:14px -6px -14px -6px;background:var(--panel);border:1px solid var(--border-soft);border-radius:4px;opacity:.5}
 .livecard{position:absolute;inset:0;background:var(--panel);border:1px solid var(--border);border-radius:4px;box-shadow:var(--shadow-card);overflow:hidden;touch-action:none;cursor:grab}
 .livecard img.hero{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.92) contrast(1.06);user-select:none}
@@ -452,13 +452,12 @@ function methodModal(){ if(!showMethod)return null;
   const FAC=[["45%","POSTING ACTIVITY","How recently they posted anywhere","var(--red)"],["35%","AUDIENCE SIZE","Followers across X, Instagram, Bluesky","var(--violet)"],["20%","WORK WITH US","Time since their last scene","var(--blue)"]];
   const TR=[["HIGH","var(--red)","The top 30 by score."],["MEDIUM","var(--violet)","Outside the top 30, scoring 40 or above."],["LOW","var(--fg-3)","Scoring below 40."]];
   const box=E("div",{class:"method"},
-    E("div",{class:"kick"},"VALUE SCORE · 0 TO 100"),
-    E("button",{class:"ghost close",style:"float:right;margin-top:-30px",onclick:()=>{showMethod=false;render();}},"CLOSE"),
     E("h3",null,"HOW RANKINGS ARE CALCULATED"),
-    E("p",{class:"lede"},"Three weighted inputs, one score out of 100. Rank is that score, high to low."),
+    E("p",{class:"lede"},"Three weighted inputs, one score out of 100."),
     ...FAC.map(([w,nm,ds,c])=>E("div",{class:"mfac"},E("div",{class:"w",style:"color:"+c},w),E("div",null,E("div",{class:"fn"},nm),E("div",{class:"fd"},ds)))),
     E("div",{class:"mdiv"}),
-    E("div",{class:"mtiers"},E("div",{class:"lbl"},"TIERS"),...TR.map(([nm,c,r])=>E("div",{class:"mtier"},E("span",{class:"dot",style:"background:"+c+";box-shadow:0 0 10px "+c}),E("span",{class:"tn",style:"color:"+c},nm),E("span",{class:"tr"},r)))));
+    E("div",{class:"mtiers"},E("div",{class:"lbl"},"TIERS"),...TR.map(([nm,c,r])=>E("div",{class:"mtier"},E("span",{class:"dot",style:"background:"+c+";box-shadow:0 0 10px "+c}),E("span",{class:"tn",style:"color:"+c},nm),E("span",{class:"tr"},r)))),
+    E("button",{class:"ghost",style:"align-self:stretch;min-height:44px",onclick:()=>{showMethod=false;render();}},"CLOSE"));
   return E("div",{class:"overlay ov-method show",onclick:e=>{ if(e.target.classList.contains("overlay")){showMethod=false;render();} }},box);
 }
 function identityModal(){ if(!(showIdentity||!voter))return null;
@@ -490,6 +489,7 @@ document.addEventListener("error",e=>{ const t=e.target; if(t&&t.tagName==="IMG"
 /* ================= BOOT ================= */
 (async function(){
   if(!CONFIG.TOKEN||CONFIG.TOKEN.includes("PASTE")){ status="Could not load — no token configured"; render(); return; }
+  try{ if(window.matchMedia("(max-width:899px)").matches) mode="deck"; }catch(_){}   // mobile defaults to Deck
   try{ const saved=localStorage.getItem(LS_KEY); if(saved&&VOTERS.includes(saved))voter=saved; else progression=true; }catch(_){ progression=true; }
   try{
     const all=await atList(CONFIG.PERF); PERF=all.filter(p=>!p.fields.Sample);
