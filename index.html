@@ -199,6 +199,7 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .vtot{width:54px;text-align:right}
 .vtot .vs{font-family:var(--font-display);font-size:26px;color:var(--blue)}
 .vtot .vi{font-family:var(--font-ident);font-size:9px;letter-spacing:.2em;color:var(--fg-3)}
+@media(max-width:560px){.vgroup{gap:6px}.vcell{width:32px;padding:3px 0}.vcell .vs{font-size:14px}.vtot{width:44px}.vtot .vs{font-size:22px}}
 
 /* ---------- modals ---------- */
 .overlay{position:fixed;inset:0;display:none;place-items:center;padding:20px}
@@ -548,7 +549,7 @@ function renderStandings(rk){
     wrap.append(E("div",{class:"srow"},
       E("div",{class:"place"},String(i+1).padStart(2,"0")),
       E("div",{class:"shot"},img),
-      E("div",{class:"idblock"},E("div",{class:"nm"},f.Name),E("div",{class:"meta",style:"color:"+tc},"RANK "+o.rank+" · "+o.tier.toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH"),E("div",{class:"pill"},E("i",{style:"width:"+(total/9*100)+"%"}))),
+      E("div",{class:"idblock"},E("div",{class:"nm"},f.Name),E("div",{class:"meta",style:"color:"+tc},"RANK "+o.rank+" · "+o.tier.toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH"),E("div",{class:"pill"},E("i",{style:"width:"+Math.min(100,total/(VOTERS.length*MAXPER||1)*100)+"%"}))),
       E("div",{class:"vgroup"},...cells,E("div",{class:"vtot"},E("div",{class:"vs"},String(total)),E("div",{class:"vi"},"STARS")))));
   }); return wrap;
 }
