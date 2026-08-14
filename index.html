@@ -48,6 +48,7 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .modes{display:flex;border:1px solid var(--border);border-radius:2px;overflow:hidden}
 .modes button{font-family:var(--font-ident);font-size:14px;letter-spacing:.12em;min-height:36px;padding:8px 14px;background:transparent;color:var(--fg-3);border:none}
 .modes button.on{background:var(--panel-2);color:var(--fg-1)}
+.hdraddbtn{background:var(--blue);color:var(--fg-on-bright);border:none;border-radius:2px;font-family:var(--font-ident);font-weight:700;font-size:13px;letter-spacing:.1em;min-height:36px;padding:0 14px;cursor:pointer;white-space:nowrap}
 .idbtn{display:flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--border);border-radius:2px;min-height:36px;padding:7px 12px;color:var(--fg-1);font-family:var(--font-ident);font-weight:600;font-size:14px;letter-spacing:.16em}
 .idbtn .d{width:7px;height:7px;border-radius:99px;background:var(--blue);box-shadow:0 0 10px var(--blue)}
 .hrow2{display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 20px 12px}
@@ -397,9 +398,12 @@ function pickVoter(v){ voter=v; try{localStorage.setItem(LS_KEY,v);}catch(_){} s
 async function setStars(id,nn){ if(!voter)return; const cur=myStars(id); let target=nn===cur?nn-1:nn; if(target<0)target=0; if(target>MAXPER)return;
   if(target>cur && spend()+(target-cur)>BUDGET){ toast((BUDGET-spend())+" stars left"); return; }
   const key=voter+"|"+id, ex=voteMap.get(key), vt=!!(ex&&ex.veto);
+  const p0=PERF.find(p=>p.id===id), setFP=voter==="Ryan"&&target>0&&p0&&!p0.fields["Falcon Production"];   // Ryan's picks auto-mark Falcon Production
+  if(setFP)p0.fields["Falcon Production"]=true;
   if(target===0&&!vt)voteMap.delete(key); else voteMap.set(key,{id:ex&&ex.id,stars:target,veto:vt}); render();
   try{ if(ex&&ex.id){ if(target===0&&!vt)await atDel(CONFIG.VOTES,ex.id); else await atPatch(CONFIG.VOTES,ex.id,{Stars:target}); }
        else if(target>0){ const name=(PERF.find(p=>p.id===id)||{}).fields.Name||""; const rec=await atPost(CONFIG.VOTES,{Key:voter+" | "+name,Voter:voter,Performer:[id],Stars:target}); voteMap.set(key,{id:rec.id,stars:target,veto:false}); }
+       if(setFP)await atPatch(CONFIG.PERF,id,{"Falcon Production":true});
        VOTES=await atList(CONFIG.VOTES); reindex();
   }catch(e){ toast("Save failed"); try{VOTES=await atList(CONFIG.VOTES);reindex();}catch(_){} } render(); }
 
@@ -422,7 +426,9 @@ function valBadge(f,s,tc,pos){ pos=pos||"";
                 :E("div",{class:"badge val",style:pos+"color:"+tc+";border-color:"+tc},String(s.value)); }
 
 /* ================= HEADER ================= */
-function modeCtl(){ const nc=newlyList().length, vc=vetoList().length; return E("div",{class:"modes"},...[["batch","GRID"],["deck","DECK"],["results","RESULTS"],["new",nc?("NEW · "+nc):"NEW"],["veto",vc?("VETOED · "+vc):"VETOED"]].map(([m,l])=>E("button",{class:(mode===m?"on":"")+(m==="veto"?" mveto":""),onclick:()=>{mode=m;detailId=null;showSheet=false;render();}},l))); }
+const MODELBL={batch:"GRID",deck:"DECK",results:"RESULTS",veto:"VETOED"};
+function modeCtl(keys){ const vc=vetoList().length; return E("div",{class:"modes"},...keys.map(m=>{ const l=m==="veto"?(vc?("VETOED · "+vc):"VETOED"):MODELBL[m];
+  return E("button",{class:(mode===m?"on":"")+(m==="veto"?" mveto":""),onclick:()=>{mode=m;detailId=null;showSheet=false;render();}},l); })); }
 function headerEl(){
   const used=spend(),left=BUDGET-used,pct=used/BUDGET*100;
   // desktop
@@ -432,12 +438,14 @@ function headerEl(){
       E("div",{class:"kicker"},"CASTING BALLOT · 2026"),
       E("div",{class:"spacer"}),
       E("button",{class:"idbtn",onclick:()=>{showIdentity=true;render();}},E("span",{class:"d"}),voter||"—"),
-      E("button",{class:"ghost",onclick:()=>{showReview=true;render();}},"REVIEW"),
-      modeCtl()),
+      modeCtl(["batch","deck"]),
+      E("button",{class:"hdraddbtn",onclick:openAdd},"+ ADD NEW MODEL")),
     E("div",{class:"hrow2"},
       E("div",{class:"starsleft"},String(left),E("small",null,"STARS LEFT")),
       E("div",{class:"track"},E("i",{style:"width:"+pct+"%"})),
-      E("div",{class:"cast"},used+" / "+BUDGET+" CAST"))
+      E("div",{class:"cast"},used+" / "+BUDGET+" CAST"),
+      E("button",{class:"ghost",onclick:()=>{showReview=true;render();}},"REVIEW"),
+      modeCtl(["results","veto"]))
   );
   // mobile
   const m=E("div",{class:"hdrM"},E("div",{class:"mh"},
@@ -446,9 +454,10 @@ function headerEl(){
       E("div",{class:"sl"},String(left),E("small",null,"LEFT")),
       E("div",{class:"mtrack"},E("i",{style:"width:"+pct+"%"})),
       E("button",{class:"vbtn",onclick:()=>{showSheet=!showSheet;render();}},showSheet?"DONE":(voter||"—"))),
-    modeCtl(),
+    modeCtl(["batch","deck","results","veto"]),
     showSheet?E("div",{class:"mpanel"},
       E("button",{class:"va",onclick:()=>{showIdentity=true;showSheet=false;render();}},"VOTING AS "+(voter||"—").toUpperCase()),
+      E("button",{class:"va",onclick:()=>{showSheet=false;openAdd();}},"+ ADD NEW MODEL"),
       E("div",{class:"two"},
         E("button",{class:"rv",onclick:()=>{showReview=true;showSheet=false;render();}},"REVIEW · "+used+"/"+BUDGET),
         E("button",{class:"sc",onclick:()=>{showMethod=true;showSheet=false;render();}},"SCORING"))):null
