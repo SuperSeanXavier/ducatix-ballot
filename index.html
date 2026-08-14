@@ -352,7 +352,8 @@ function ranked(){ const list=PERF.filter(p=>!isNew(p.fields)&&!isVetoed(p.id)).
     .filter(o=> o.s.sceneDays==null || o.s.sceneDays<=CUT_DAYS)   // hard 13-month recency cutoff
     .sort((a,b)=>b.s.value-a.s.value);
   list.forEach((o,i)=>{ o.rank=i+1; o.tier=i<HIGH_N?"High":(o.s.value>=40?"Medium":"Low"); }); return list; }
-function newlyList(){ return PERF.filter(p=>isNew(p.fields)).map(p=>({p,s:score(p.fields)})).sort((a,b)=>(a.p.fields.Name||"").localeCompare(b.p.fields.Name||"")); }
+function newlyList(){ const list=PERF.filter(p=>isNew(p.fields)).map(p=>({p,s:score(p.fields)})).sort((a,b)=>b.s.value-a.s.value||(a.p.fields.Name||"").localeCompare(b.p.fields.Name||""));
+  list.forEach((o,i)=>{ o.rank=i+1; o.tier=o.s.value>=60?"High":o.s.value>=40?"Medium":"Low"; }); return list; }
 function vetoList(){ const list=PERF.filter(p=>isVetoed(p.id)&&!isNew(p.fields)).map(p=>({p,s:score(p.fields)})).sort((a,b)=>b.s.value-a.s.value);
   list.forEach((o,i)=>{ o.rank=i+1; o.tier=o.s.value>=60?"High":o.s.value>=40?"Medium":"Low"; }); return list; }
 const TIER=[["High","var(--red)"],["Medium","var(--violet)"],["Low","var(--fg-3)"]];
@@ -475,21 +476,6 @@ function renderGrid(rk){
 }
 
 /* ================= NEWLY ADDED ================= */
-function newCard(o){
-  const f=o.p.fields,id=o.p.id,mine=myStars(id),vet=myVeto(id),list=studiosOf(f);
-  const initials=(f.Name||"?").split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join("").toUpperCase()||"?";
-  const mono=f.Headshot?E("img",{class:"mono monoimg",src:encodeURI(f.Headshot),alt:"",loading:"lazy"}):E("div",{class:"mono"},initials);
-  return E("div",{class:"newcard"+(isVetoed(id)?" veto":"")},
-    isVetoed(id)?E("div",{class:"vetoflag"},"VETOED"):null,
-    E("div",{class:"newtop"},
-      mono,
-      E("div",{class:"newmeta"},
-        E("div",{class:"newbadge"},"NEWLY ADDED"),
-        E("div",{class:"pname",style:"font-size:23px"},f.Name),
-        E("div",{class:"newnote"},"Profile pending — social + film data coming soon"))),
-    list.length?E("div",{class:"studios",style:"height:auto"},...list.map(chip)):null,
-    E("div",{class:"starrow"},E("div",{class:"lbl"},"YOUR STARS"),E("div",{class:"starbtns"},...[1,2,3].map(nn=>E("button",{class:nn<=mine?"on":"",onclick:()=>setStars(id,nn)},String(nn))),E("button",{class:"vetobtn"+(vet?" on":""),onclick:()=>setVeto(id)},vet?"VETOED":"VETO"))));
-}
 function renderNew(){
   const list=newlyList();
   const head=E("div",{class:"tierhead"},
@@ -497,7 +483,7 @@ function renderNew(){
     E("span",{class:"tiername"},"NEWLY ADDED"),
     E("span",{class:"rangelbl"},list.length?list.length+" PERFORMERS":"NONE YET"),
     E("button",{class:"addnewbtn",onclick:openAdd},"+ ADD NEW MODEL"));
-  const body=list.length?E("div",{class:"grid newgrid"},...list.map(newCard)):E("div",{class:"newempty"},E("div",null,"No newly-added performers yet."),E("button",{class:"addnewbtn",style:"margin-top:16px",onclick:openAdd},"+ ADD NEW MODEL"));
+  const body=list.length?E("div",{class:"grid"},...list.map(perfCard)):E("div",{class:"newempty"},E("div",null,"No newly-added performers yet."),E("button",{class:"addnewbtn",style:"margin-top:16px",onclick:openAdd},"+ ADD NEW MODEL"));
   return E("div",{class:"shell"},head,body);
 }
 function renderVetoed(){
