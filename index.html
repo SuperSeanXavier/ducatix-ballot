@@ -133,6 +133,7 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .studios{display:flex;flex-wrap:wrap;align-content:flex-start;gap:5px;height:24px;overflow:hidden;transition:height .46s var(--ease)}
 .card.open .studios{height:53px}
 .chip{font-family:var(--font-ident);font-size:12px;letter-spacing:.14em;height:24px;line-height:14px;padding:4px 8px;border-radius:2px;white-space:nowrap;border:1px solid}
+.falconchip{background:var(--red);color:#fff;border-color:var(--red);font-weight:700}
 .morebtn{font-family:var(--font-ident);font-weight:600;font-size:12px;letter-spacing:.14em;height:24px;padding:0 8px;border-radius:2px;background:transparent;border:1px solid var(--border-soft);color:var(--fg-3)}
 .lastposted{font-size:13px;color:var(--fg-3);padding-left:16px;margin-bottom:8px}
 .linkchips{display:flex;flex-wrap:wrap;gap:6px}
@@ -200,6 +201,14 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .vtot .vs{font-family:var(--font-display);font-size:26px;color:var(--blue)}
 .vtot .vi{font-family:var(--font-ident);font-size:9px;letter-spacing:.2em;color:var(--fg-3)}
 @media(max-width:560px){.vgroup{gap:6px}.vcell{width:32px;padding:3px 0}.vcell .vs{font-size:14px}.vtot{width:44px}.vtot .vs{font-size:22px}}
+.shot{cursor:pointer;position:relative}
+.shotexp{position:absolute;right:2px;bottom:2px;width:16px;height:16px;background:color-mix(in srgb,var(--ink) 72%,transparent);border:1px solid var(--border);border-radius:2px;color:var(--fg-1);font-family:var(--font-display);font-size:13px;line-height:13px;text-align:center}
+.srow.vetoed{opacity:.75;border-color:color-mix(in srgb,var(--red) 45%,transparent);background:color-mix(in srgb,var(--red) 7%,var(--panel))}
+.srow.vetoed .place{color:color-mix(in srgb,var(--red) 60%,var(--fg-3))}
+.standdetail{flex-basis:100%;width:100%;display:flex;flex-direction:column;gap:11px;border-top:1px solid var(--border-soft);margin-top:6px;padding-top:12px}
+.standveto{display:flex}
+.standveto .vetobtn{flex:1;min-height:42px;border-radius:2px;background:transparent;border:1px solid color-mix(in srgb,var(--red) 55%,transparent);color:var(--red);font-family:var(--font-ident);font-size:13px;letter-spacing:.16em;cursor:pointer;transition:background .15s,color .15s}
+.standveto .vetobtn.on{background:var(--red);color:#fff;border-color:var(--red)}
 
 /* ---------- modals ---------- */
 .overlay{position:fixed;inset:0;display:none;place-items:center;padding:20px}
@@ -333,7 +342,7 @@ const STUDIOS=["DucatiOriginals","Falcon","BondageBros","ChoiceFilmz","DaddyPatr
 function studiosOf(f){ let v; for(const k of BRAND_KEYS){ if(f[k]!=null){v=f[k];break;} } if(v==null)return []; if(Array.isArray(v))return v.filter(Boolean); return String(v).split(/[,;]/).map(s=>s.trim()).filter(Boolean); }
 
 /* ================= STATE ================= */
-let PERF=[],VOTES=[],voter=null,mode="batch",tierIdx=0,deckIdx=0,detailId=null,deckExpanded=false;
+let PERF=[],VOTES=[],voter=null,mode="batch",tierIdx=0,deckIdx=0,detailId=null,deckExpanded=false,standId=null;
 let showReview=false,showMethod=false,showIdentity=false,showSheet=false,status="",dragging=false,progression=false;
 let showAdd=false,newForm=null;
 function blankForm(){ return {name:"",x:"",xf:"",ig:"",igf:"",bsky:"",bskyf:"",of:"",jff:"",hsMode:"drop",headshot:"",brands:new Set(),busy:false}; }
@@ -344,7 +353,7 @@ function reindex(){ voteMap.clear(); for(const v of VOTES){ const w=v.fields.Vot
 const isVetoed=id=>vetoSet.has(id);
 const myVeto=id=>voter?!!((voteMap.get(voter+"|"+id)||{}).veto):false;
 const myStars=id=>voter?((voteMap.get(voter+"|"+id)||{}).stars||0):0;
-const spend=v=>{ const who=v||voter; if(!who)return 0; return Array.from(voteMap.entries()).filter(([k])=>k.startsWith(who+"|")).reduce((a,[,x])=>a+x.stars,0); };
+const spend=v=>{ const who=v||voter; if(!who)return 0; return Array.from(voteMap.entries()).filter(([k])=>k.startsWith(who+"|")).reduce((a,[k,x])=>a+(isVetoed(k.slice(k.indexOf("|")+1))?0:x.stars),0); };
 const totalStars=id=>VOTERS.reduce((a,w)=>a+((voteMap.get(w+"|"+id)||{}).stars||0),0);
 
 /* ================= RANK / TIERS ================= */
@@ -428,7 +437,7 @@ function platformDrawer(f,reach){
     const label=h?E("a",{class:"plabel",href:base+String(h).replace(/^@/,""),target:"_blank",rel:"noopener"},lab):E("div",{class:"plabel"},lab);
     return E("div",{class:"prow"},label,E("div",{class:"pbar"},E("i",{style:"width:"+pct+"%;background:"+col})),E("div",{class:"pcount"},fmtNum(cnt))); }));
 }
-function chip(v){ const c=studioColor(v); return E("span",{class:"chip",style:"color:"+c+";border-color:color-mix(in srgb,"+c+" 45%,transparent)"},studioLabel(v)); }
+function chip(v){ const c=studioColor(v); if(/falcon/i.test(String(v)))return E("span",{class:"chip falconchip"},studioLabel(v)); return E("span",{class:"chip",style:"color:"+c+";border-color:color-mix(in srgb,"+c+" 45%,transparent)"},studioLabel(v)); }
 function studioChips(list,open,onMore){
   if(!list.length)return E("div",{class:"studios"},E("span",{class:"chip",style:"color:var(--fg-3);border-color:color-mix(in srgb,var(--fg-3) 45%,transparent)"},"UNRECORDED"));
   const wrap=E("div",{class:"studios"}); if(open){ list.forEach(v=>wrap.append(chip(v))); return wrap; }
@@ -539,18 +548,29 @@ function renderDeck(rk){
 
 /* ================= STANDINGS ================= */
 function renderStandings(rk){
-  const rows=rk.filter(o=>!isVetoed(o.p.id)&&totalStars(o.p.id)>0).map(o=>({o,total:totalStars(o.p.id)})).sort((a,b)=>b.total-a.total||b.o.s.value-a.o.s.value);
-  const sum=VOTERS.map(v=>v.toUpperCase()+" "+spend(v)+" / 50").join("  ·  ");
+  const pool=rk.concat(vetoList());   // ranked (non-vetoed) + vetoed, so vetoed can sit at the bottom
+  const rows=pool.filter(o=>totalStars(o.p.id)>0).map(o=>({o,total:totalStars(o.p.id),vet:isVetoed(o.p.id)}))
+    .sort((a,b)=>(a.vet?1:0)-(b.vet?1:0)||b.total-a.total||b.o.s.value-a.o.s.value);
+  const sum=VOTERS.map(v=>v.toUpperCase()+" "+spend(v)+" / "+BUDGET).join("  ·  ");
   const wrap=E("div",{class:"standshell"},E("div",{class:"standhdr"},E("h2",null,"STANDINGS"),E("div",{class:"sum"},sum)));
   if(!rows.length){ wrap.append(E("div",{class:"loadline",style:"text-align:left;padding:20px 0"},"No stars cast yet.")); return wrap; }
-  rows.forEach(({o,total},i)=>{ const f=o.p.fields,tc=tierColorOf(o.tier);
+  rows.forEach(({o,total,vet},i)=>{ const f=o.p.fields,id=o.p.id,tc=tierColorOf(o.tier),open=standId===id;
     const img=E("img",{src:f.Headshot?encodeURI(f.Headshot):"",alt:""}); if(!f.Headshot)img.setAttribute("data-broken","");
-    const cells=VOTERS.map(v=>{ const st=(voteMap.get(v+"|"+o.p.id)||{}).stars||0; return E("div",{class:"vcell"+(st>0?" did":"")},E("div",{class:"vi"},v[0]),E("div",{class:"vs",style:st>0?"":"color:var(--fg-3)"},st>0?String(st):"—")); });
-    wrap.append(E("div",{class:"srow"},
-      E("div",{class:"place"},String(i+1).padStart(2,"0")),
-      E("div",{class:"shot"},img),
-      E("div",{class:"idblock"},E("div",{class:"nm"},f.Name),E("div",{class:"meta",style:"color:"+tc},"RANK "+o.rank+" · "+o.tier.toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH"),E("div",{class:"pill"},E("i",{style:"width:"+Math.min(100,total/(VOTERS.length*MAXPER||1)*100)+"%"}))),
-      E("div",{class:"vgroup"},...cells,E("div",{class:"vtot"},E("div",{class:"vs"},String(total)),E("div",{class:"vi"},"STARS")))));
+    const cells=VOTERS.map(v=>{ const st=(voteMap.get(v+"|"+id)||{}).stars||0; return E("div",{class:"vcell"+(st>0?" did":"")},E("div",{class:"vi"},v[0]),E("div",{class:"vs",style:st>0?"":"color:var(--fg-3)"},st>0?String(st):"—")); });
+    const toggle=()=>{ standId=open?null:id; render(); };
+    const meta=vet?E("div",{class:"meta",style:"color:var(--red)"},"VETOED · STARS RETURNED · "+fmtNum(o.s.reach)+" REACH"):E("div",{class:"meta",style:"color:"+tc},"RANK "+o.rank+" · "+o.tier.toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH");
+    const detail=open?E("div",{class:"standdetail"},
+      platformDrawer(f,o.s.reach),
+      E("div",{class:"filmed"},(()=>{const fl=filmed(o.s.sceneDays);return E("span",{class:"dot",style:"background:"+fl.c+";color:"+fl.c});})(),filmed(o.s.sceneDays).t),
+      linkChips(f),
+      E("div",{class:"standveto"},E("button",{class:"vetobtn"+(myVeto(id)?" on":""),onclick:()=>setVeto(id)},myVeto(id)?"✕ VETOED — TAP TO RESTORE":"✕ VETO — SEND TO BOTTOM"))
+    ):null;
+    wrap.append(E("div",{class:"srow"+(vet?" vetoed":"")+(open?" open":"")},
+      E("div",{class:"place"},vet?"—":String(i+1).padStart(2,"0")),
+      E("div",{class:"shot",title:"Tap to expand",onclick:toggle},img,E("div",{class:"shotexp"},open?"–":"+")),
+      E("div",{class:"idblock"},E("div",{class:"nm"},f.Name),meta,E("div",{class:"pill"},E("i",{style:"width:"+Math.min(100,total/(VOTERS.length*MAXPER||1)*100)+"%"}))),
+      E("div",{class:"vgroup"},...cells,E("div",{class:"vtot"},E("div",{class:"vs"},String(total)),E("div",{class:"vi"},"STARS"))),
+      detail));
   }); return wrap;
 }
 
