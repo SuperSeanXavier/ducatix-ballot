@@ -93,6 +93,7 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .newcard.veto{border-color:var(--red);box-shadow:0 0 0 1px var(--red),0 0 22px color-mix(in srgb,var(--red) 45%,transparent)}
 .newtop{display:flex;gap:14px;align-items:center}
 .mono{flex:0 0 auto;width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:24px;color:var(--blue);background:color-mix(in srgb,var(--blue) 12%,var(--panel-2));border:1px solid var(--border-blue)}
+.monoimg{object-fit:cover;object-position:50% 22%}
 .newmeta{min-width:0;display:flex;flex-direction:column;gap:4px}
 .newbadge{align-self:flex-start;font-family:var(--font-ident);font-size:10px;letter-spacing:.24em;color:var(--blue);border:1px solid var(--border-blue);border-radius:2px;padding:2px 7px}
 .newnote{font-family:var(--font-body);font-size:12px;color:var(--fg-3);line-height:1.35}
@@ -477,10 +478,11 @@ function renderGrid(rk){
 function newCard(o){
   const f=o.p.fields,id=o.p.id,mine=myStars(id),vet=myVeto(id),list=studiosOf(f);
   const initials=(f.Name||"?").split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join("").toUpperCase()||"?";
+  const mono=f.Headshot?E("img",{class:"mono monoimg",src:encodeURI(f.Headshot),alt:"",loading:"lazy"}):E("div",{class:"mono"},initials);
   return E("div",{class:"newcard"+(isVetoed(id)?" veto":"")},
     isVetoed(id)?E("div",{class:"vetoflag"},"VETOED"):null,
     E("div",{class:"newtop"},
-      E("div",{class:"mono"},initials),
+      mono,
       E("div",{class:"newmeta"},
         E("div",{class:"newbadge"},"NEWLY ADDED"),
         E("div",{class:"pname",style:"font-size:23px"},f.Name),
