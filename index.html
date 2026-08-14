@@ -88,6 +88,15 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 
 /* ---------- grid + card ---------- */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.newgrid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.newcard{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.newcard.veto{border-color:var(--red);box-shadow:0 0 0 1px var(--red),0 0 22px color-mix(in srgb,var(--red) 45%,transparent)}
+.newtop{display:flex;gap:14px;align-items:center}
+.mono{flex:0 0 auto;width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:24px;color:var(--blue);background:color-mix(in srgb,var(--blue) 12%,var(--panel-2));border:1px solid var(--border-blue)}
+.newmeta{min-width:0;display:flex;flex-direction:column;gap:4px}
+.newbadge{align-self:flex-start;font-family:var(--font-ident);font-size:10px;letter-spacing:.24em;color:var(--blue);border:1px solid var(--border-blue);border-radius:2px;padding:2px 7px}
+.newnote{font-family:var(--font-body);font-size:12px;color:var(--fg-3);line-height:1.35}
+.newempty{padding:60px 20px;text-align:center;color:var(--fg-3);font-family:var(--font-ident);letter-spacing:.14em}
 .card{position:relative;aspect-ratio:5/8;background:var(--panel);border:1px solid var(--border);border-radius:4px;overflow:hidden;transition:border-color .16s ease}
 .card.starred{border-color:var(--border-blue)}
 .mediawell{position:absolute;top:0;left:0;right:0;height:72%;overflow:hidden;border-bottom:1px solid var(--border);transition:height .46s var(--ease)}
@@ -295,10 +304,12 @@ const spend=v=>{ const who=v||voter; if(!who)return 0; return Array.from(voteMap
 const totalStars=id=>VOTERS.reduce((a,w)=>a+((voteMap.get(w+"|"+id)||{}).stars||0),0);
 
 /* ================= RANK / TIERS ================= */
-function ranked(){ const list=PERF.map(p=>({p,s:score(p.fields)}))
+const isNew=f=>!!f["Newly Added"];
+function ranked(){ const list=PERF.filter(p=>!isNew(p.fields)).map(p=>({p,s:score(p.fields)}))
     .filter(o=> o.s.sceneDays==null || o.s.sceneDays<=CUT_DAYS)   // hard 13-month recency cutoff
     .sort((a,b)=>b.s.value-a.s.value);
   list.forEach((o,i)=>{ o.rank=i+1; o.tier=i<HIGH_N?"High":(o.s.value>=40?"Medium":"Low"); }); return list; }
+function newlyList(){ return PERF.filter(p=>isNew(p.fields)).map(p=>({p,s:score(p.fields)})).sort((a,b)=>(a.p.fields.Name||"").localeCompare(b.p.fields.Name||"")); }
 const TIER=[["High","var(--red)"],["Medium","var(--violet)"],["Low","var(--fg-3)"]];
 const tierColorOf=t=>({High:"var(--red)",Medium:"var(--violet)",Low:"var(--fg-3)"})[t];
 function buckets(rk){ const g={High:[],Medium:[],Low:[]}; rk.forEach(o=>g[o.tier].push(o)); return g; }
@@ -328,7 +339,7 @@ async function setVeto(id){ if(!voter)return;
   }catch(e){ toast("Save failed"); try{VOTES=await atList(CONFIG.VOTES);reindex();}catch(_){} } render(); }
 
 /* ================= HEADER ================= */
-function modeCtl(){ return E("div",{class:"modes"},...[["batch","GRID"],["deck","DECK"],["results","RESULTS"]].map(([m,l])=>E("button",{class:mode===m?"on":"",onclick:()=>{mode=m;detailId=null;showSheet=false;render();}},l))); }
+function modeCtl(){ const nc=newlyList().length; return E("div",{class:"modes"},...[["batch","GRID"],["deck","DECK"],["results","RESULTS"],["new",nc?("NEW · "+nc):"NEW"]].map(([m,l])=>E("button",{class:mode===m?"on":"",onclick:()=>{mode=m;detailId=null;showSheet=false;render();}},l))); }
 function headerEl(){
   const used=spend(),left=BUDGET-used,pct=used/BUDGET*100;
   // desktop
@@ -416,6 +427,31 @@ function renderGrid(rk){
   const foot=E("div",{class:"tierfoot"},...TIER.map(([nm,c],i)=>{ const on=i===tierIdx;
     return E("button",{style:on?"background:var(--panel-2);color:"+c+";border-color:color-mix(in srgb,"+c+" 45%,transparent)":"",onclick:()=>{tierIdx=i;detailId=null;window.scrollTo(0,0);render();}},nm.toUpperCase()+" · "+g[nm].length); }));
   return E("div",{class:"shell"},head,E("div",{class:"grid"},...list.map(perfCard)),foot);
+}
+
+/* ================= NEWLY ADDED ================= */
+function newCard(o){
+  const f=o.p.fields,id=o.p.id,mine=myStars(id),vet=myVeto(id),list=studiosOf(f);
+  const initials=(f.Name||"?").split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join("").toUpperCase()||"?";
+  return E("div",{class:"newcard"+(isVetoed(id)?" veto":"")},
+    isVetoed(id)?E("div",{class:"vetoflag"},"VETOED"):null,
+    E("div",{class:"newtop"},
+      E("div",{class:"mono"},initials),
+      E("div",{class:"newmeta"},
+        E("div",{class:"newbadge"},"NEWLY ADDED"),
+        E("div",{class:"pname",style:"font-size:23px"},f.Name),
+        E("div",{class:"newnote"},"Profile pending — social + film data coming soon"))),
+    list.length?E("div",{class:"studios",style:"height:auto"},...list.map(chip)):null,
+    E("div",{class:"starrow"},E("div",{class:"lbl"},"YOUR STARS"),E("div",{class:"starbtns"},...[1,2,3].map(nn=>E("button",{class:nn<=mine?"on":"",onclick:()=>setStars(id,nn)},String(nn))),E("button",{class:"vetobtn"+(vet?" on":""),onclick:()=>setVeto(id)},vet?"VETOED":"VETO"))));
+}
+function renderNew(){
+  const list=newlyList();
+  const head=E("div",{class:"tierhead"},
+    E("span",{class:"dot",style:"background:var(--blue);box-shadow:0 0 10px var(--blue)"}),
+    E("span",{class:"tiername"},"NEWLY ADDED"),
+    E("span",{class:"rangelbl"},list.length?list.length+" PERFORMERS":"NONE YET"));
+  const body=list.length?E("div",{class:"grid newgrid"},...list.map(newCard)):E("div",{class:"newempty"},"No newly-added performers yet.");
+  return E("div",{class:"shell"},head,body);
 }
 
 /* ================= DECK ================= */
@@ -514,6 +550,7 @@ function render(){
   root.append(headerEl());
   if(mode==="batch")root.append(renderGrid(rk));
   else if(mode==="deck")root.append(E("div",{class:"shell"},renderDeck(rk)));
+  else if(mode==="new")root.append(renderNew());
   else root.append(E("div",{class:"shell"},renderStandings(rk)));
   const r=reviewSheet(rk); if(r)root.append(r);
   const me=methodModal(); if(me)root.append(me);
