@@ -220,7 +220,8 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .standacts .fpbtn.on{background:var(--red);color:#fff;border-color:var(--red)}
 .nmrow{display:flex;align-items:center;gap:8px;min-width:0}
 .nmrow .nm{flex:0 1 auto;min-width:0}
-.fppill{flex:none;background:var(--red);color:#fff;font-family:var(--font-ident);font-size:9.5px;font-weight:800;letter-spacing:.14em;padding:3px 7px;border-radius:2px;white-space:nowrap}
+.fbox{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:var(--red);color:#fff;font-family:var(--font-ident);font-size:12px;font-weight:800;border-radius:2px}
+.standkey{display:flex;align-items:center;gap:7px;margin:0 0 14px;font-family:var(--font-ident);font-size:11px;letter-spacing:.14em;color:var(--fg-3)}
 
 /* ---------- modals ---------- */
 .overlay{position:fixed;inset:0;display:none;place-items:center;padding:20px}
@@ -590,7 +591,8 @@ function renderStandings(rk){
     .sort((a,b)=>(a.vet?1:0)-(b.vet?1:0)||b.total-a.total||b.o.s.value-a.o.s.value);
   const sum=VOTERS.map(v=>v.toUpperCase()+" "+spend(v)+" / "+BUDGET).join("  ·  ");
   const maxTotal=Math.max(1,...rows.map(r=>r.total));   // bar scales to the current leader
-  const wrap=E("div",{class:"standshell"},E("div",{class:"standhdr"},E("h2",null,"STANDINGS"),E("div",{class:"sum"},sum)));
+  const wrap=E("div",{class:"standshell"},E("div",{class:"standhdr"},E("h2",null,"STANDINGS"),E("div",{class:"sum"},sum)),
+    E("div",{class:"standkey"},E("span",{class:"fbox"},"F"),E("span",null,"Falcon Prod Eligible")));
   if(!rows.length){ wrap.append(E("div",{class:"loadline",style:"text-align:left;padding:20px 0"},"No stars cast yet.")); return wrap; }
   rows.forEach(({o,total,vet},i)=>{ const f=o.p.fields,id=o.p.id,tc=tierColorOf(o.tier),open=standId===id,fp=isFalconProd(f);
     const img=E("img",{src:f.Headshot?encodeURI(f.Headshot):"",alt:""}); if(!f.Headshot)img.setAttribute("data-broken","");
@@ -599,7 +601,7 @@ function renderStandings(rk){
     const meta=vet?E("div",{class:"meta",style:"color:var(--red)"},"VETOED · STARS RETURNED · "+fmtNum(o.s.reach)+" REACH")
       :isHP(f)?E("div",{class:"meta",style:"color:var(--red)"},"RANK "+o.rank+" · HAND PICKED · "+String(f.Badge).toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH")
       :E("div",{class:"meta",style:"color:"+tc},"RANK "+o.rank+" · "+o.tier.toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH");
-    const nameRow=E("div",{class:"nmrow"},E("div",{class:"nm"},f.Name),fp?E("span",{class:"fppill"},"FALCON PROD ELIGIBLE"):null);
+    const nameRow=E("div",{class:"nmrow"},E("div",{class:"nm"},f.Name),fp?E("span",{class:"fbox",title:"Falcon Prod Eligible"},"F"):null);
     const detail=open?E("div",{class:"standdetail"},
       f.Headshot?E("div",{class:"standbigwrap"},E("img",{class:"standbig",src:encodeURI(f.Headshot),alt:f.Name})):null,
       platformDrawer(f,o.s.reach),
