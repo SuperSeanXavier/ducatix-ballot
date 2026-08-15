@@ -226,7 +226,13 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .nmrow{display:flex;align-items:center;gap:8px;min-width:0}
 .nmrow .nm{flex:0 1 auto;min-width:0}
 .fbox{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:var(--red);color:#fff;font-family:var(--font-ident);font-size:12px;font-weight:800;border-radius:2px}
-.standkey{display:flex;align-items:center;gap:7px;margin:0 0 14px;font-family:var(--font-ident);font-size:11px;letter-spacing:.14em;color:var(--fg-3)}
+.rbox{flex:none;display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;background:var(--panel-2);border:1px solid var(--border);color:var(--fg-1);font-family:var(--font-ident);font-size:11px;font-weight:700;letter-spacing:.04em;border-radius:2px}
+.standkey{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:0 0 14px;font-family:var(--font-ident);font-size:11px;letter-spacing:.14em;color:var(--fg-3)}
+.standtally{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:0 0 12px;padding:12px 14px;background:var(--panel);border:1px solid var(--border);border-radius:4px;font-family:var(--font-display);font-size:19px}
+.standtally .tsel{font-family:var(--font-ident);font-size:12px;font-weight:700;letter-spacing:.16em;color:var(--fg-3);margin-right:6px}
+.selbox{flex:none;width:26px;height:26px;align-self:center;border:1px solid var(--border);border-radius:4px;background:var(--panel-2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:15px;transition:background .14s,border-color .14s}
+.selbox.on{background:#22C55E;border-color:#22C55E}
+.srow.sel{border-color:#22C55E;background:color-mix(in srgb,#22C55E 12%,var(--panel))}
 
 /* ---------- modals ---------- */
 .overlay{position:fixed;inset:0;display:none;place-items:center;padding:20px}
@@ -439,6 +445,11 @@ async function setFalconProd(id){ const p=PERF.find(x=>x.id===id); if(!p)return;
   p.fields["Falcon Production"]=nv; render();
   try{ const r=await atPatch(CONFIG.PERF,id,{"Falcon Production":nv}); if(!r||r.error)throw new Error("save"); }
   catch(e){ p.fields["Falcon Production"]=!nv; toast("Save failed"); render(); } }
+async function setShortlist(id){ const p=PERF.find(x=>x.id===id); if(!p)return; const nv=!p.fields.Shortlist;
+  p.fields.Shortlist=nv; render();
+  try{ const r=await atPatch(CONFIG.PERF,id,{Shortlist:nv}); if(!r||r.error)throw new Error("save"); }
+  catch(e){ p.fields.Shortlist=!nv; toast("Save failed"); render(); } }
+const ROLE_ABBR={"Top":"T","Bottom":"B","Vers":"V","Vers-Top":"Vt","Vers-Bottom":"Vb"};
 
 /* value badge: hand-picked show a HAND PICKED badge (who selected them) instead of the numeric score */
 function valBadge(f,s,tc,pos){ pos=pos||"";
@@ -611,8 +622,22 @@ function renderStandings(rk){
     .sort((a,b)=>(a.vet?1:0)-(b.vet?1:0)||b.total-a.total||b.o.s.value-a.o.s.value);
   const sum=VOTERS.map(v=>v.toUpperCase()+" "+spend(v)+" / "+BUDGET).join("  ·  ");
   const maxTotal=Math.max(1,...rows.map(r=>r.total));   // bar scales to the current leader
-  const wrap=E("div",{class:"standshell"},E("div",{class:"standhdr"},E("h2",null,"STANDINGS"),E("div",{class:"sum"},sum)),
-    E("div",{class:"standkey"},E("span",{class:"fbox"},"F"),E("span",null,"Falcon Prod Eligible")));
+  // role-balance tally over green-selected (Shortlist) performers; Vers-Top/Bottom split ½/½
+  let tT=0,tV=0,tB=0,nSel=0; const fmtH=n=>Number.isInteger(n)?String(n):n.toFixed(1);
+  PERF.forEach(p=>{ if(!p.fields.Shortlist)return; nSel++; const r=p.fields.Role;
+    if(r==="Top")tT++; else if(r==="Bottom")tB++; else if(r==="Vers")tV++;
+    else if(r==="Vers-Top"){tT+=.5;tV+=.5;} else if(r==="Vers-Bottom"){tB+=.5;tV+=.5;} });
+  const tally=E("div",{class:"standtally"},
+    E("span",{class:"tsel"},"SELECTED "+nSel),
+    E("span",{class:"tt",style:"color:var(--blue)"},"TOPS "+fmtH(tT)),
+    E("span",{class:"tv",style:"color:var(--violet)"},"VERS "+fmtH(tV)),
+    E("span",{class:"tb",style:"color:var(--red)"},"BTMS "+fmtH(tB)));
+  const wrap=E("div",{class:"standshell"},E("div",{class:"standhdr"},E("h2",null,"STANDINGS"),E("div",{class:"sum"},sum)),tally,
+    E("div",{class:"standkey"},E("span",{class:"fbox"},"F"),E("span",null,"Falcon Prod Eligible"),
+      E("span",{class:"rbox",style:"margin-left:10px"},"T"),E("span",null,"Top"),
+      E("span",{class:"rbox"},"V"),E("span",null,"Vers"),
+      E("span",{class:"rbox"},"B"),E("span",null,"Bottom"),
+      E("span",{class:"rbox"},"Vt/Vb"),E("span",null,"Vers-Top/Bottom")));
   if(!rows.length){ wrap.append(E("div",{class:"loadline",style:"text-align:left;padding:20px 0"},"No stars cast yet.")); return wrap; }
   rows.forEach(({o,total,vet},i)=>{ const f=o.p.fields,id=o.p.id,tc=tierColorOf(o.tier),open=standId===id,fp=isFalconProd(f);
     const img=E("img",{src:f.Headshot?encodeURI(f.Headshot):"",alt:""}); if(!f.Headshot)img.setAttribute("data-broken","");
@@ -622,7 +647,10 @@ function renderStandings(rk){
     const meta=vet?E("div",{class:"meta",style:"color:"+vcol},"VETOED BY "+vwho+(con?" · CONTESTED":"")+" · STARS RETURNED · "+fmtNum(o.s.reach)+" REACH")
       :isHP(f)?E("div",{class:"meta",style:"color:var(--red)"},"RANK "+o.rank+" · HAND PICKED · "+String(f.Badge).toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH")
       :E("div",{class:"meta",style:"color:"+tc},"RANK "+o.rank+" · "+o.tier.toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH");
-    const nameRow=E("div",{class:"nmrow"},E("div",{class:"nm"},f.Name),fp?E("span",{class:"fbox",title:"Falcon Prod Eligible"},"F"):null);
+    const rl=f.Role?ROLE_ABBR[f.Role]:null;
+    const nameRow=E("div",{class:"nmrow"},E("div",{class:"nm"},f.Name),
+      fp?E("span",{class:"fbox",title:"Falcon Prod Eligible"},"F"):null,
+      rl?E("span",{class:"rbox",title:f.Role},rl):null);
     const vbtn=!vet?E("button",{class:"vetobtn",onclick:()=>setVeto(id)},"✕ VETO — SEND TO BOTTOM")
       :myVeto(id)?E("button",{class:"vetobtn on",onclick:()=>setVeto(id)},"✕ VETOED — TAP TO RESTORE")
       :E("button",{class:"contestbtn"+(myContest(id)?" on":""),onclick:()=>setContest(id)},myContest(id)?"⚑ VETOED / CONTESTED — WITHDRAW":"⚑ CONTEST THIS VETO");
@@ -636,11 +664,12 @@ function renderStandings(rk){
         E("button",{class:"fpbtn"+(fp?" on":""),onclick:()=>setFalconProd(id)},fp?"✦ FALCON PROD ELIGIBLE — ON":"✦ MARK FALCON PROD ELIGIBLE"),
         vbtn)
     ):null;
-    wrap.append(E("div",{class:"srow"+(vet?(con?" contested":" vetoed"):"")+(open?" open":"")+(fp?" fprod":"")},
+    const selbox=E("div",{class:"selbox"+(f.Shortlist?" on":""),title:"Select for roster tally",onclick:()=>setShortlist(id)},f.Shortlist?"✓":"");
+    wrap.append(E("div",{class:"srow"+(vet?(con?" contested":" vetoed"):"")+(open?" open":"")+(fp?" fprod":"")+(f.Shortlist?" sel":"")},
       E("div",{class:"place"},vet?"—":String(i+1).padStart(2,"0")),
       E("div",{class:"shot",title:"Tap to expand",onclick:toggle},img,E("div",{class:"shotexp"},open?"–":"+")),
       E("div",{class:"idblock"},nameRow,meta,E("div",{class:"pill"},E("i",{style:"width:"+Math.min(100,total/maxTotal*100)+"%"}))),
-      E("div",{class:"vgroup"},...cells,E("div",{class:"vtot"},E("div",{class:"vs"},String(total)),E("div",{class:"vi"},"STARS"))),
+      E("div",{class:"vgroup"},...cells,E("div",{class:"vtot"},E("div",{class:"vs"},String(total)),E("div",{class:"vi"},"STARS")),selbox),
       detail));
   }); return wrap;
 }
