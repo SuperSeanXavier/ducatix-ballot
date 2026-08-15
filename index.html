@@ -194,8 +194,10 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .idblock{flex:1;min-width:130px}
 .idblock .nm{font-family:var(--font-ident);font-weight:600;font-size:17px;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .idblock .meta{font-family:var(--font-ident);font-size:10px;letter-spacing:.18em;margin:3px 0 6px}
-.idblock .smeter{height:6px;background:var(--panel-2);border-radius:99px;overflow:hidden}
+.idblock .smeter{height:6px;margin-top:8px;background:var(--panel-2);border-radius:99px;overflow:hidden}
 .idblock .smeter i{display:block;height:100%;background:var(--blue)}
+.nreach{flex:none;font-family:var(--font-ident);font-size:11px;letter-spacing:.14em;color:var(--fg-3);white-space:nowrap}
+.standrank{font-family:var(--font-ident);font-size:12px;letter-spacing:.2em;font-weight:700}
 .vgroup{flex:1 0 auto;display:flex;justify-content:flex-end;gap:10px;flex-wrap:nowrap}
 .vcell{width:38px;text-align:center;border:1px solid var(--border-soft);border-radius:2px;padding:4px 0}
 .vcell.did{border-color:color-mix(in srgb,var(--blue) 45%,transparent)}
@@ -644,19 +646,20 @@ function renderStandings(rk){
     const cells=VOTERS.map(v=>{ const st=(voteMap.get(v+"|"+id)||{}).stars||0; return E("div",{class:"vcell"+(st>0?" did":"")},E("div",{class:"vi"},v[0]),E("div",{class:"vs",style:st>0?"":"color:var(--fg-3)"},st>0?String(st):"—")); });
     const toggle=()=>{ standId=open?null:id; render(); };
     const con=isContested(id), vwho=vetoers(id).join(" & ").toUpperCase(), cwho=contesters(id).join(" & ").toUpperCase(), vcol=con?"var(--amber)":"var(--red)";
-    const meta=vet?E("div",{class:"meta",style:"color:"+vcol},"VETOED BY "+vwho+(con?" · CONTESTED":"")+" · STARS RETURNED · "+fmtNum(o.s.reach)+" REACH")
-      :isHP(f)?E("div",{class:"meta",style:"color:var(--red)"},"RANK "+o.rank+" · HAND PICKED · "+String(f.Badge).toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH")
-      :E("div",{class:"meta",style:"color:"+tc},"RANK "+o.rank+" · "+o.tier.toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH");
+    const meta=vet?E("div",{class:"meta",style:"color:"+vcol},"VETOED BY "+vwho+(con?" · CONTESTED":"")+" · STARS RETURNED")
+      :isHP(f)?E("div",{class:"meta",style:"color:var(--red)"},"HAND PICKED · "+String(f.Badge).toUpperCase())
+      :null;   // rank + tier moved to the expanded large view
     const rl=f.Role?ROLE_ABBR[f.Role]:null;
     const nameRow=E("div",{class:"nmrow"},E("div",{class:"nm"},f.Name),
       fp?E("span",{class:"fbox",title:"Falcon Prod Eligible"},"F"):null,
-      rl?E("span",{class:"rbox",title:f.Role},rl):null);
+      rl?E("span",{class:"rbox",title:f.Role},rl):null,
+      E("span",{class:"nreach"},fmtNum(o.s.reach)+" REACH"));
     const vbtn=!vet?E("button",{class:"vetobtn",onclick:()=>setVeto(id)},"✕ VETO — SEND TO BOTTOM")
       :myVeto(id)?E("button",{class:"vetobtn on",onclick:()=>setVeto(id)},"✕ VETOED — TAP TO RESTORE")
       :E("button",{class:"contestbtn"+(myContest(id)?" on":""),onclick:()=>setContest(id)},myContest(id)?"⚑ VETOED / CONTESTED — WITHDRAW":"⚑ CONTEST THIS VETO");
     const detail=open?E("div",{class:"standdetail"},
       f.Headshot?E("div",{class:"standbigwrap"},E("img",{class:"standbig",src:encodeURI(f.Headshot),alt:f.Name})):null,
-      vet?E("div",{class:"standwho",style:"color:"+vcol},"VETOED BY "+vwho+(con?"   ·   CONTESTED BY "+cwho:"")):null,
+      vet?E("div",{class:"standwho",style:"color:"+vcol},"VETOED BY "+vwho+(con?"   ·   CONTESTED BY "+cwho:"")):E("div",{class:"standrank",style:"color:"+tc},"RANK "+o.rank+" · "+o.tier.toUpperCase()+(isHP(f)?" · HAND PICKED":"")),
       platformDrawer(f,o.s.reach),
       E("div",{class:"filmed"},(()=>{const fl=filmed(o.s.sceneDays);return E("span",{class:"dot",style:"background:"+fl.c+";color:"+fl.c});})(),filmed(o.s.sceneDays).t),
       linkChips(f),
