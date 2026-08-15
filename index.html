@@ -194,8 +194,8 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .idblock{flex:1;min-width:130px}
 .idblock .nm{font-family:var(--font-ident);font-weight:600;font-size:17px;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .idblock .meta{font-family:var(--font-ident);font-size:10px;letter-spacing:.18em;margin:3px 0 6px}
-.idblock .pill{height:4px;background:var(--panel-2);border-radius:99px;overflow:hidden}
-.idblock .pill i{display:block;height:100%;background:var(--blue)}
+.idblock .smeter{height:6px;background:var(--panel-2);border-radius:99px;overflow:hidden}
+.idblock .smeter i{display:block;height:100%;background:var(--blue)}
 .vgroup{flex:1 0 auto;display:flex;justify-content:flex-end;gap:10px;flex-wrap:nowrap}
 .vcell{width:38px;text-align:center;border:1px solid var(--border-soft);border-radius:2px;padding:4px 0}
 .vcell.did{border-color:color-mix(in srgb,var(--blue) 45%,transparent)}
@@ -668,7 +668,7 @@ function renderStandings(rk){
     wrap.append(E("div",{class:"srow"+(vet?(con?" contested":" vetoed"):"")+(open?" open":"")+(fp?" fprod":"")+(f.Shortlist?" sel":"")},
       E("div",{class:"place"},vet?"—":String(i+1).padStart(2,"0")),
       E("div",{class:"shot",title:"Tap to expand",onclick:toggle},img,E("div",{class:"shotexp"},open?"–":"+")),
-      E("div",{class:"idblock"},nameRow,meta,E("div",{class:"pill"},E("i",{style:"width:"+Math.min(100,total/maxTotal*100)+"%"}))),
+      E("div",{class:"idblock"},nameRow,meta,E("div",{class:"smeter"},E("i",{style:"width:"+Math.min(100,total/maxTotal*100)+"%"}))),
       E("div",{class:"vgroup"},...cells,E("div",{class:"vtot"},E("div",{class:"vs"},String(total)),E("div",{class:"vi"},"STARS")),selbox),
       detail));
   }); return wrap;
