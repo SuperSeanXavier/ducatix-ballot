@@ -356,7 +356,7 @@ function score(f){ const reach=n0(f["X followers"])+n0(f["IG followers"])+n0(f["
   const sceneDays=days(f["Last scene"]); const A=activity(postDays),S=size(reach),C=collab(sceneDays);
   const hp=!!f.Badge;   // hand-picked: activity+audience only, no "work with us", NORMALIZED to 0-100 (45:35 -> 56.25%/43.75%)
   const raw=hp?(0.45*A+0.35*S)/0.80:(0.45*A+0.35*S+0.20*C);   // 0-100
-  const value=Math.round(raw*0.9*10)/10;   // scale ceiling to 90 instead of 100
+  const value=Math.round(raw*(hp?0.9:1)*10)/10;   // hand-picked ceiling 90; regulars 100
   return {reach,postDays,sceneDays,value}; }
 
 /* ================= DERIVED ================= */
@@ -698,7 +698,7 @@ function methodModal(){ if(!showMethod)return null;
     ...FAC.map(([w,nm,ds,c])=>E("div",{class:"mfac"},E("div",{class:"w",style:"color:"+c},w),E("div",null,E("div",{class:"fn"},nm),E("div",{class:"fd"},ds)))),
     E("div",{class:"mdiv"}),
     E("div",{class:"mtiers"},E("div",{class:"lbl"},"TIERS"),...TR.map(([nm,c,r])=>E("div",{class:"mtier"},E("span",{class:"dot",style:"background:"+c+";box-shadow:0 0 10px "+c}),E("span",{class:"tn",style:"color:"+c},nm),E("span",{class:"tr"},r)))),
-    E("div",{class:"mnote"},E("b",null,"HAND PICKED"),document.createTextNode(" — added directly by a reviewer. Placed in High and scored on posting activity + audience size only (no ‘work with us’), normalized to the full 0–100 scale (≈56% / 44%), then ranked among everyone by that score.")),
+    E("div",{class:"mnote"},E("b",null,"HAND PICKED"),document.createTextNode(" — added directly by a reviewer. Placed in High and scored on posting activity + audience size only (no ‘work with us’), normalized (≈56% / 44%) and capped at 90, then ranked among everyone by that score.")),
     E("button",{class:"ghost",style:"align-self:stretch;min-height:44px",onclick:()=>{showMethod=false;render();}},"CLOSE"));
   return E("div",{class:"overlay ov-method show",onclick:e=>{ if(e.target.classList.contains("overlay")){showMethod=false;render();} }},box);
 }
