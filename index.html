@@ -341,6 +341,7 @@ const CONFIG={ BASE_ID:"appOVIIrtTP2JV7v8",
   TOKEN:"patve1k5AfRVlBHA5.a1ff888a635b89301fca5edf59a9486a378236b1b2299fc40d363cbf41fbdb21",
   PERF:"Performers", VOTES:"Votes", VTBL:"Voters" };
 let VOTERS=["Trenton","Dan","Sean"];   // fallback; replaced at load from the Voters table
+let VOTER_BUDGET={};   // per-voter star budget override (Voters.Stars); default BUDGET
 const BUDGET=66, MAXPER=3, HIGH_N=30, CUT_DAYS=395;   // hard cutoff: >~13 months since last scene drops off
 const NOW=new Date("2026-08-13");
 const LS_KEY="ducatix-ballot-voter";
@@ -425,7 +426,7 @@ function pickVoter(v){ voter=v; try{localStorage.setItem(LS_KEY,v);}catch(_){} s
 
 /* ================= VOTING ================= */
 async function setStars(id,nn){ if(!voter)return; const cur=myStars(id); let target=nn===cur?nn-1:nn; if(target<0)target=0; if(target>MAXPER)return;
-  if(target>cur && spend()+(target-cur)>BUDGET){ toast((BUDGET-spend())+" stars left"); return; }
+  if(target>cur && spend()+(target-cur)>budgetOf()){ toast((budgetOf()-spend())+" stars left"); return; }
   const key=voter+"|"+id, ex=voteMap.get(key), vt=!!(ex&&ex.veto), ct=!!(ex&&ex.contest);
   const p0=PERF.find(p=>p.id===id), setFP=voter==="Ryan"&&target>0&&p0&&!p0.fields["Falcon Production"];   // Ryan's picks auto-mark Falcon Production
   if(setFP)p0.fields["Falcon Production"]=true;
@@ -488,7 +489,7 @@ const MODELBL={batch:"GRID",deck:"DECK",results:"RESULTS",veto:"VETOED"};
 function modeCtl(keys){ const vc=vetoList().length; return E("div",{class:"modes"},...keys.map(m=>{ const l=m==="veto"?(vc?("VETOED · "+vc):"VETOED"):MODELBL[m];
   return E("button",{class:(mode===m?"on":"")+(m==="veto"?" mveto":""),onclick:()=>{mode=m;detailId=null;showSheet=false;render();}},l); })); }
 function headerEl(){
-  const used=spend(),left=BUDGET-used,pct=used/BUDGET*100;
+  const used=spend(),left=budgetOf()-used,pct=used/budgetOf()*100;
   // desktop
   const d=E("div",{class:"hdrD"},
     E("div",{class:"hrow1"},
@@ -501,7 +502,7 @@ function headerEl(){
     E("div",{class:"hrow2"},
       E("div",{class:"starsleft"},String(left),E("small",null,"STARS LEFT")),
       E("div",{class:"track"},E("i",{style:"width:"+pct+"%"})),
-      E("div",{class:"cast"},used+" / "+BUDGET+" CAST"),
+      E("div",{class:"cast"},used+" / "+budgetOf()+" CAST"),
       modeCtl(["veto"]),
       E("div",{class:"modes"},
         E("button",{onclick:()=>{showReview=true;render();}},"REVIEW"),
@@ -519,7 +520,7 @@ function headerEl(){
       E("button",{class:"va",onclick:()=>{showIdentity=true;showSheet=false;render();}},"VOTING AS "+(voter||"—").toUpperCase()),
       E("button",{class:"va",onclick:()=>{showSheet=false;openAdd();}},"+ ADD NEW MODEL"),
       E("div",{class:"two"},
-        E("button",{class:"rv",onclick:()=>{showReview=true;showSheet=false;render();}},"REVIEW · "+used+"/"+BUDGET),
+        E("button",{class:"rv",onclick:()=>{showReview=true;showSheet=false;render();}},"REVIEW · "+used+"/"+budgetOf()),
         E("button",{class:"sc",onclick:()=>{showMethod=true;showSheet=false;render();}},"SCORING"))):null
   ));
   return E("header",null,d,m);
@@ -651,7 +652,7 @@ function renderStandings(rk){
   const pool=rk.concat(vetoList());   // ranked (non-vetoed) + vetoed, so vetoed can sit at the bottom
   const rows=pool.filter(o=>totalStars(o.p.id)>0).map(o=>({o,total:totalStars(o.p.id),vet:isVetoed(o.p.id)}))
     .sort((a,b)=>(a.vet?1:0)-(b.vet?1:0)||b.total-a.total||b.o.s.value-a.o.s.value);
-  const sum=VOTERS.map(v=>v.toUpperCase()+" "+spend(v)+" / "+BUDGET).join("  ·  ");
+  const sum=VOTERS.map(v=>v.toUpperCase()+" "+spend(v)+" / "+budgetOf(v)).join("  ·  ");
   const maxTotal=Math.max(1,...rows.map(r=>r.total));   // bar scales to the current leader
   // role-balance tally over green-selected (Shortlist) performers; Vers-Top/Bottom split ½/½
   let tT=0,tV=0,tB=0,nSel=0; const fmtH=n=>Number.isInteger(n)?String(n):n.toFixed(1);
@@ -708,7 +709,7 @@ function renderStandings(rk){
 
 /* ================= MODALS ================= */
 function reviewSheet(rk){ if(!showReview)return null;
-  const mine=rk.filter(o=>myStars(o.p.id)>0).sort((a,b)=>myStars(b.p.id)-myStars(a.p.id)||b.s.value-a.s.value); const used=spend(),left=BUDGET-used;
+  const mine=rk.filter(o=>myStars(o.p.id)>0).sort((a,b)=>myStars(b.p.id)-myStars(a.p.id)||b.s.value-a.s.value); const used=spend(),left=budgetOf()-used;
   const sheet=E("div",{class:"sheet"},
     E("button",{class:"ghost close",onclick:()=>{showReview=false;render();}},"CLOSE"),
     E("div",{class:"kick"},(voter||"—").toUpperCase()+"'S BALLOT"),
@@ -822,13 +823,14 @@ document.addEventListener("paste",handleGlobalPaste);
 /* ================= VOTERS (dynamic from Airtable) ================= */
 async function loadVoters(){ try{
   const rows=await atList(CONFIG.VTBL);
-  const seen=new Set(),out=[];
-  rows.map(r=>({n:String(r.fields.Name||"").trim(),o:r.fields.Order}))
+  const seen=new Set(),out=[],bud={};
+  rows.map(r=>({n:String(r.fields.Name||"").trim(),o:r.fields.Order,s:r.fields.Stars}))
       .filter(x=>x.n)
       .sort((a,b)=>((a.o==null?1e9:a.o)-(b.o==null?1e9:b.o))||a.n.localeCompare(b.n))
-      .forEach(x=>{ const k=x.n.toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(x.n); } });
-  if(out.length)VOTERS=out;
+      .forEach(x=>{ const k=x.n.toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(x.n); if(x.s>0)bud[x.n]=x.s; } });
+  if(out.length)VOTERS=out; VOTER_BUDGET=bud;
 }catch(_){/* keep fallback */} }
+const budgetOf=v=>VOTER_BUDGET[v||voter]||BUDGET;
 
 /* ================= BOOT ================= */
 (async function(){
