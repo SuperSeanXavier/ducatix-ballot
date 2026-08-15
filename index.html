@@ -83,6 +83,14 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .tiername{font-family:var(--font-display);font-size:30px;text-transform:uppercase;line-height:.9}
 .rangelbl{font-family:var(--font-ident);font-size:11px;letter-spacing:.2em;color:var(--fg-3)}
 .tierchips{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+.filterbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 16px}
+.filtwrap{display:flex;align-items:center;gap:7px;font-family:var(--font-ident);font-size:11px;letter-spacing:.18em;color:var(--fg-3)}
+.filt{background:var(--panel-2);border:1px solid var(--border);border-radius:2px;color:var(--fg-1);font-family:var(--font-ident);font-size:12px;letter-spacing:.06em;padding:7px 9px;min-height:36px;cursor:pointer}
+.filtclear{background:transparent;border:1px solid var(--border);border-radius:2px;color:var(--fg-2);font-family:var(--font-ident);font-size:11px;letter-spacing:.14em;min-height:34px;padding:0 12px;cursor:pointer}
+.rrtags{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.rrtag{font-family:var(--font-ident);font-size:10px;font-weight:700;letter-spacing:.14em;padding:4px 9px;border-radius:2px;border:1px solid var(--border);color:var(--fg-2)}
+.rrtag.role{color:var(--blue);border-color:var(--border-blue)}
+.rrtag.race{color:var(--fg-1);border-color:var(--border)}
 .tchip{font-family:var(--font-ident);font-size:14px;letter-spacing:.12em;min-height:36px;padding:0 12px;border-radius:2px;background:transparent;color:var(--fg-3);border:1px solid var(--border-soft)}
 .tierfoot{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:32px}
 .tierfoot button{font-family:var(--font-ident);font-size:14px;letter-spacing:.12em;min-height:48px;padding:14px 24px;border-radius:4px;background:transparent;color:var(--fg-2);border:1px solid var(--border)}
@@ -373,7 +381,7 @@ const STUDIOS=["DucatiOriginals","Falcon","BondageBros","ChoiceFilmz","DaddyPatr
 function studiosOf(f){ let v; for(const k of BRAND_KEYS){ if(f[k]!=null){v=f[k];break;} } if(v==null)return []; if(Array.isArray(v))return v.filter(Boolean); return String(v).split(/[,;]/).map(s=>s.trim()).filter(Boolean); }
 
 /* ================= STATE ================= */
-let PERF=[],VOTES=[],voter=null,mode="batch",tierIdx=0,deckIdx=0,detailId=null,deckExpanded=false,standId=null;
+let PERF=[],VOTES=[],voter=null,mode="batch",tierIdx=0,deckIdx=0,detailId=null,deckExpanded=false,standId=null,filterRace=null,filterRole=null;
 let showReview=false,showMethod=false,showIdentity=false,showSheet=false,status="",dragging=false,progression=false;
 let showAdd=false,newForm=null;
 function blankForm(){ return {name:"",x:"",xf:"",ig:"",igf:"",bsky:"",bskyf:"",of:"",jff:"",hsMode:"drop",headshot:"",brands:new Set(),busy:false}; }
@@ -453,6 +461,22 @@ async function setShortlist(id){ const p=PERF.find(x=>x.id===id); if(!p)return; 
   try{ const r=await atPatch(CONFIG.PERF,id,{Shortlist:nv}); if(!r||r.error)throw new Error("save"); }
   catch(e){ p.fields.Shortlist=!nv; toast("Save failed"); render(); } }
 const ROLE_ABBR={"Top":"T","Bottom":"B","Vers":"V","Vers-Top":"Vt","Vers-Bottom":"Vb"};
+const RACE_OPTS=["Asian","Black","Latin","White"], ROLE_OPTS=["Top","Vers","Bottom","Vers-Top","Vers-Bottom"];
+function applyFilters(rk){ return rk.filter(o=>{ const f=o.p.fields;
+  if(filterRace){ if(filterRace==="__none__"){ if(f.Race)return false; } else if(f.Race!==filterRace)return false; }
+  if(filterRole){ if(filterRole==="__none__"){ if(f.Role)return false; } else if(f.Role!==filterRole)return false; }
+  return true; }); }
+function filtSelect(label,cur,vals,onchange){
+  const opts=[["","ALL"],...vals.map(v=>[v,v.toUpperCase()]),["__none__","UNDEFINED"]];
+  const sel=E("select",{class:"filt",onchange:e=>onchange(e.target.value||null)},
+    ...opts.map(([v,l])=>{ const o=E("option",{value:v},l); if(v===(cur||""))o.setAttribute("selected","selected"); return o; }));
+  return E("label",{class:"filtwrap"},E("span",null,label),sel); }
+function filterBar(){ return E("div",{class:"filterbar"},
+  filtSelect("RACE",filterRace,RACE_OPTS,v=>{filterRace=v;detailId=null;deckIdx=0;render();}),
+  filtSelect("ROLE",filterRole,ROLE_OPTS,v=>{filterRole=v;detailId=null;deckIdx=0;render();}),
+  (filterRace||filterRole)?E("button",{class:"filtclear",onclick:()=>{filterRace=null;filterRole=null;render();}},"CLEAR"):null); }
+function rrTags(f){ const items=[]; if(f.Role)items.push(["role",f.Role]); if(f.Race)items.push(["race",f.Race]);
+  return items.length?E("div",{class:"rrtags"},...items.map(([c,v])=>E("span",{class:"rrtag "+c},v.toUpperCase()))):null; }
 
 /* value badge: hand-picked show a HAND PICKED badge (who selected them) instead of the numeric score */
 function valBadge(f,s,tc,pos){ pos=pos||"";
@@ -534,6 +558,7 @@ function perfCard(o){
       E("div",{class:"pname",onclick:toggle},f.Name),
       E("div",{class:"reachrow"},E("div",{class:"reachnum"},fmtNum(s.reach)),E("div",{class:"reachlbl"},"TOTAL REACH"),E("button",{class:"bkbtn",onclick:toggle},open?"CLOSE":"BREAKDOWN")),
       platformDrawer(f,s.reach),
+      open?rrTags(f):null,
       E("div",{class:"filmed"},E("span",{class:"dot",style:"background:"+fl.c+";color:"+fl.c}),fl.t),
       studioChips(list,open,toggle),
       linksDrawer(f),
@@ -554,7 +579,7 @@ function renderGrid(rk){
     E("button",{class:"ghost scoringbtn",onclick:()=>{showMethod=true;render();}},"HOW SCORING WORKS"));
   const foot=E("div",{class:"tierfoot"},...TIER.map(([nm,c],i)=>{ const on=i===tierIdx;
     return E("button",{style:on?"background:var(--panel-2);color:"+c+";border-color:color-mix(in srgb,"+c+" 45%,transparent)":"",onclick:()=>{tierIdx=i;detailId=null;window.scrollTo(0,0);render();}},nm.toUpperCase()+" · "+g[nm].length); }));
-  return E("div",{class:"shell"},head,E("div",{class:"grid"},...list.map(perfCard)),foot);
+  return E("div",{class:"shell"},head,filterBar(),E("div",{class:"grid"},...list.map(perfCard)),foot);
 }
 
 /* ================= NEWLY ADDED ================= */
@@ -580,7 +605,8 @@ function renderVetoed(){
 
 /* ================= DECK ================= */
 function renderDeck(rk){
-  if(deckIdx>=rk.length)deckIdx=Math.max(0,rk.length-1); const o=rk[deckIdx]; if(!o)return E("div",{class:"deckshell"});
+  if(deckIdx>=rk.length)deckIdx=Math.max(0,rk.length-1); const o=rk[deckIdx];
+  if(!o)return E("div",{class:"deckshell"},filterBar(),E("div",{class:"newempty"},"No performers match this filter."));
   const f=o.p.fields,id=o.p.id,s=o.s,fl=filmed(s.sceneDays),mine=myStars(id),tc=tierColorOf(o.tier);
   const img=E("img",{class:"hero",src:f.Headshot?encodeURI(f.Headshot):"",draggable:"false",alt:""}); if(!f.Headshot)img.setAttribute("data-broken","");
   const pcol=(nm,cnt,col,h,base)=>E(h?"a":"div",{class:"pcol",style:"border-color:"+col,...(h?{href:base+String(h).replace(/^@/,""),target:"_blank",rel:"noopener"}:{})},E("div",{class:"pn"},nm),E("div",{class:"pv"},fmtNum(cnt)));
@@ -589,6 +615,7 @@ function renderDeck(rk){
   const more=E("div",{class:"deckmore"+(deckExpanded?" open":"")},
     E("div",{class:"pcols"},pcol("X",n0(f["X followers"]),"var(--white)",f["X handle"],"https://x.com/"),pcol("INSTAGRAM",n0(f["IG followers"]),"var(--violet)",f["IG handle"],"https://instagram.com/"),pcol("BLUESKY",n0(f["Bsky followers"]),"var(--blue)",f["Bsky handle"],"https://bsky.app/profile/")),
     linkChips(f),
+    rrTags(f),
     E("div",{class:"filmed"},E("span",{class:"dot",style:"background:"+fl.c+";color:"+fl.c}),fl.t),
     stu);
   const tri=E("button",{class:"deckexp"+(deckExpanded?" open":""),"aria-label":"Toggle details"});
@@ -614,6 +641,7 @@ function renderDeck(rk){
     E("button",{class:"next",onclick:()=>{if(deckIdx<rk.length-1){deckIdx++;render();}}},"NEXT"));
   const veto=E("button",{class:"deckveto"+(myVeto(id)?" on":""),onclick:()=>setVeto(id)},myVeto(id)?"✕ VETOED — TAP TO UNDO":"✕ VETO");
   return E("div",{class:"deckshell"},
+    filterBar(),
     E("div",{class:"deckhdr"},E("div",{class:"prog"},(deckIdx+1)+" of "+rk.length+" · "+o.tier.toUpperCase()),E("div",{class:"prog"},"DRAG TO BROWSE")),
     E("div",{class:"stack"},E("div",{class:"shadowcard"}),live),ctl,veto,E("div",{class:"deckhint"},"DRAG TO MOVE · TAP 1 · 2 · 3 TO STAR · PASSING IS DEFAULT"));
 }
@@ -775,8 +803,8 @@ function render(){
   if(status){ app().innerHTML=""; app().append(E("div",{class:"loadline"},status)); return; }
   const _sy=window.scrollY; const rk=ranked(); const root=E("div",null);
   root.append(headerEl());
-  if(mode==="batch")root.append(renderGrid(rk));
-  else if(mode==="deck")root.append(E("div",{class:"shell"},renderDeck(rk)));
+  if(mode==="batch")root.append(renderGrid(applyFilters(rk)));
+  else if(mode==="deck")root.append(E("div",{class:"shell"},renderDeck(applyFilters(rk))));
   else if(mode==="new")root.append(renderNew());
   else if(mode==="veto")root.append(renderVetoed());
   else root.append(E("div",{class:"shell"},renderStandings(rk)));
