@@ -355,7 +355,8 @@ function score(f){ const reach=n0(f["X followers"])+n0(f["IG followers"])+n0(f["
   const pds=[f["X last"],f["IG last"],f["Bsky last"]].map(days).filter(x=>x!=null); const postDays=pds.length?Math.min(...pds):null;
   const sceneDays=days(f["Last scene"]); const A=activity(postDays),S=size(reach),C=collab(sceneDays);
   const hp=!!f.Badge;   // hand-picked: activity+audience only, no "work with us", NORMALIZED to 0-100 (45:35 -> 56.25%/43.75%)
-  const value=hp?Math.round((0.45*A+0.35*S)/0.80*10)/10:Math.round((0.45*A+0.35*S+0.20*C)*10)/10;
+  const raw=hp?(0.45*A+0.35*S)/0.80:(0.45*A+0.35*S+0.20*C);   // 0-100
+  const value=Math.round(raw*0.9*10)/10;   // scale ceiling to 90 instead of 100
   return {reach,postDays,sceneDays,value}; }
 
 /* ================= DERIVED ================= */
