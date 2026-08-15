@@ -209,6 +209,9 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .shotexp{position:absolute;right:2px;bottom:2px;width:16px;height:16px;background:color-mix(in srgb,var(--ink) 72%,transparent);border:1px solid var(--border);border-radius:2px;color:var(--fg-1);font-family:var(--font-display);font-size:13px;line-height:13px;text-align:center}
 .srow.vetoed{opacity:.75;border-color:color-mix(in srgb,var(--red) 45%,transparent);background:color-mix(in srgb,var(--red) 7%,var(--panel))}
 .srow.vetoed .place{color:color-mix(in srgb,var(--red) 60%,var(--fg-3))}
+.srow.contested{opacity:.9;border-color:color-mix(in srgb,var(--amber) 55%,transparent);background:color-mix(in srgb,var(--amber) 9%,var(--panel))}
+.srow.contested .place{color:color-mix(in srgb,var(--amber) 70%,var(--fg-3))}
+.standwho{font-family:var(--font-ident);font-size:12px;letter-spacing:.16em;font-weight:600}
 .standdetail{flex-basis:100%;width:100%;display:flex;flex-direction:column;gap:11px;border-top:1px solid var(--border-soft);margin-top:6px;padding-top:12px}
 .standbigwrap{display:flex;justify-content:center;background:var(--panel-2);border:1px solid var(--border-soft);border-radius:4px;overflow:hidden}
 .standbig{max-width:100%;max-height:70vh;width:auto;height:auto;object-fit:contain;display:block}
@@ -218,6 +221,8 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ink)
 .standacts .vetobtn.on{background:var(--red);color:#fff;border-color:var(--red)}
 .standacts .fpbtn{border:1px solid var(--border);color:var(--fg-1)}
 .standacts .fpbtn.on{background:var(--red);color:#fff;border-color:var(--red)}
+.standacts .contestbtn{border:1px solid color-mix(in srgb,var(--amber) 60%,transparent);color:var(--amber)}
+.standacts .contestbtn.on{background:var(--amber);color:var(--fg-on-bright);border-color:var(--amber)}
 .nmrow{display:flex;align-items:center;gap:8px;min-width:0}
 .nmrow .nm{flex:0 1 auto;min-width:0}
 .fbox{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:var(--red);color:#fff;font-family:var(--font-ident);font-size:12px;font-weight:800;border-radius:2px}
@@ -364,12 +369,16 @@ let showReview=false,showMethod=false,showIdentity=false,showSheet=false,status=
 let showAdd=false,newForm=null;
 function blankForm(){ return {name:"",x:"",xf:"",ig:"",igf:"",bsky:"",bskyf:"",of:"",jff:"",hsMode:"drop",headshot:"",brands:new Set(),busy:false}; }
 const voteMap=new Map();
-const vetoSet=new Set();
-function recomputeVeto(){ vetoSet.clear(); for(const [k,v] of voteMap){ if(v.veto)vetoSet.add(k.slice(k.indexOf("|")+1)); } }
-function reindex(){ voteMap.clear(); for(const v of VOTES){ const w=v.fields.Voter,l=(v.fields.Performer||[])[0],s=n0(v.fields.Stars); if(w&&l)voteMap.set(w+"|"+l,{id:v.id,stars:s,veto:!!v.fields.veto}); } recomputeVeto(); }
+const vetoSet=new Set(),contestSet=new Set();
+function recomputeVeto(){ vetoSet.clear(); contestSet.clear(); for(const [k,v] of voteMap){ const pid=k.slice(k.indexOf("|")+1); if(v.veto)vetoSet.add(pid); if(v.contest)contestSet.add(pid); } }
+function reindex(){ voteMap.clear(); for(const v of VOTES){ const w=v.fields.Voter,l=(v.fields.Performer||[])[0],s=n0(v.fields.Stars); if(w&&l)voteMap.set(w+"|"+l,{id:v.id,stars:s,veto:!!v.fields.veto,contest:!!v.fields.contest}); } recomputeVeto(); }
 const isVetoed=id=>vetoSet.has(id);
+const isContested=id=>contestSet.has(id);
 const myVeto=id=>voter?!!((voteMap.get(voter+"|"+id)||{}).veto):false;
-function vetoers(id){ const out=[]; for(const[k,v] of voteMap){ if(v.veto && k.slice(k.indexOf("|")+1)===id)out.push(k.slice(0,k.indexOf("|"))); } return out; }
+const myContest=id=>voter?!!((voteMap.get(voter+"|"+id)||{}).contest):false;
+function whoFlag(id,flag){ const out=[]; for(const[k,v] of voteMap){ if(v[flag] && k.slice(k.indexOf("|")+1)===id)out.push(k.slice(0,k.indexOf("|"))); } return out; }
+const vetoers=id=>whoFlag(id,"veto");
+const contesters=id=>whoFlag(id,"contest");
 const myStars=id=>voter?((voteMap.get(voter+"|"+id)||{}).stars||0):0;
 const spend=v=>{ const who=v||voter; if(!who)return 0; return Array.from(voteMap.entries()).filter(([k])=>k.startsWith(who+"|")).reduce((a,[k,x])=>a+(isVetoed(k.slice(k.indexOf("|")+1))?0:x.stars),0); };
 const totalStars=id=>VOTERS.reduce((a,w)=>a+((voteMap.get(w+"|"+id)||{}).stars||0),0);
@@ -400,21 +409,29 @@ function pickVoter(v){ voter=v; try{localStorage.setItem(LS_KEY,v);}catch(_){} s
 /* ================= VOTING ================= */
 async function setStars(id,nn){ if(!voter)return; const cur=myStars(id); let target=nn===cur?nn-1:nn; if(target<0)target=0; if(target>MAXPER)return;
   if(target>cur && spend()+(target-cur)>BUDGET){ toast((BUDGET-spend())+" stars left"); return; }
-  const key=voter+"|"+id, ex=voteMap.get(key), vt=!!(ex&&ex.veto);
+  const key=voter+"|"+id, ex=voteMap.get(key), vt=!!(ex&&ex.veto), ct=!!(ex&&ex.contest);
   const p0=PERF.find(p=>p.id===id), setFP=voter==="Ryan"&&target>0&&p0&&!p0.fields["Falcon Production"];   // Ryan's picks auto-mark Falcon Production
   if(setFP)p0.fields["Falcon Production"]=true;
-  if(target===0&&!vt)voteMap.delete(key); else voteMap.set(key,{id:ex&&ex.id,stars:target,veto:vt}); render();
-  try{ if(ex&&ex.id){ if(target===0&&!vt)await atDel(CONFIG.VOTES,ex.id); else await atPatch(CONFIG.VOTES,ex.id,{Stars:target}); }
-       else if(target>0){ const name=(PERF.find(p=>p.id===id)||{}).fields.Name||""; const rec=await atPost(CONFIG.VOTES,{Key:voter+" | "+name,Voter:voter,Performer:[id],Stars:target}); voteMap.set(key,{id:rec.id,stars:target,veto:false}); }
+  if(target===0&&!vt&&!ct)voteMap.delete(key); else voteMap.set(key,{id:ex&&ex.id,stars:target,veto:vt,contest:ct}); render();
+  try{ if(ex&&ex.id){ if(target===0&&!vt&&!ct)await atDel(CONFIG.VOTES,ex.id); else await atPatch(CONFIG.VOTES,ex.id,{Stars:target}); }
+       else if(target>0){ const name=(PERF.find(p=>p.id===id)||{}).fields.Name||""; const rec=await atPost(CONFIG.VOTES,{Key:voter+" | "+name,Voter:voter,Performer:[id],Stars:target}); voteMap.set(key,{id:rec.id,stars:target,veto:false,contest:false}); }
        if(setFP)await atPatch(CONFIG.PERF,id,{"Falcon Production":true});
        VOTES=await atList(CONFIG.VOTES); reindex();
   }catch(e){ toast("Save failed"); try{VOTES=await atList(CONFIG.VOTES);reindex();}catch(_){} } render(); }
 
 async function setVeto(id){ if(!voter)return;
-  const key=voter+"|"+id, ex=voteMap.get(key), nv=!(ex&&ex.veto), st=(ex&&ex.stars)||0;
-  if(nv||st>0)voteMap.set(key,{id:ex&&ex.id,stars:st,veto:nv}); else voteMap.delete(key); recomputeVeto(); render();
-  try{ if(ex&&ex.id){ if(!nv&&st===0)await atDel(CONFIG.VOTES,ex.id); else await atPatch(CONFIG.VOTES,ex.id,{veto:nv}); }
-       else if(nv){ const name=(PERF.find(p=>p.id===id)||{}).fields.Name||""; const rec=await atPost(CONFIG.VOTES,{Key:voter+" | "+name,Voter:voter,Performer:[id],Stars:0,veto:true}); voteMap.set(key,{id:rec.id,stars:0,veto:true}); }
+  const key=voter+"|"+id, ex=voteMap.get(key), nv=!(ex&&ex.veto), st=(ex&&ex.stars)||0, ct=!!(ex&&ex.contest);
+  if(nv||st>0||ct)voteMap.set(key,{id:ex&&ex.id,stars:st,veto:nv,contest:ct}); else voteMap.delete(key); recomputeVeto(); render();
+  try{ if(ex&&ex.id){ if(!nv&&st===0&&!ct)await atDel(CONFIG.VOTES,ex.id); else await atPatch(CONFIG.VOTES,ex.id,{veto:nv}); }
+       else if(nv){ const name=(PERF.find(p=>p.id===id)||{}).fields.Name||""; const rec=await atPost(CONFIG.VOTES,{Key:voter+" | "+name,Voter:voter,Performer:[id],Stars:0,veto:true}); voteMap.set(key,{id:rec.id,stars:0,veto:true,contest:false}); }
+       VOTES=await atList(CONFIG.VOTES); reindex();
+  }catch(e){ toast("Save failed"); try{VOTES=await atList(CONFIG.VOTES);reindex();}catch(_){} } render(); }
+
+async function setContest(id){ if(!voter)return;
+  const key=voter+"|"+id, ex=voteMap.get(key), nc=!(ex&&ex.contest), st=(ex&&ex.stars)||0, vt=!!(ex&&ex.veto);
+  if(nc||st>0||vt)voteMap.set(key,{id:ex&&ex.id,stars:st,veto:vt,contest:nc}); else voteMap.delete(key); recomputeVeto(); render();
+  try{ if(ex&&ex.id){ if(!nc&&st===0&&!vt)await atDel(CONFIG.VOTES,ex.id); else await atPatch(CONFIG.VOTES,ex.id,{contest:nc}); }
+       else if(nc){ const name=(PERF.find(p=>p.id===id)||{}).fields.Name||""; const rec=await atPost(CONFIG.VOTES,{Key:voter+" | "+name,Voter:voter,Performer:[id],Stars:0,contest:true}); voteMap.set(key,{id:rec.id,stars:0,veto:false,contest:true}); }
        VOTES=await atList(CONFIG.VOTES); reindex();
   }catch(e){ toast("Save failed"); try{VOTES=await atList(CONFIG.VOTES);reindex();}catch(_){} } render(); }
 
@@ -601,20 +618,25 @@ function renderStandings(rk){
     const img=E("img",{src:f.Headshot?encodeURI(f.Headshot):"",alt:""}); if(!f.Headshot)img.setAttribute("data-broken","");
     const cells=VOTERS.map(v=>{ const st=(voteMap.get(v+"|"+id)||{}).stars||0; return E("div",{class:"vcell"+(st>0?" did":"")},E("div",{class:"vi"},v[0]),E("div",{class:"vs",style:st>0?"":"color:var(--fg-3)"},st>0?String(st):"—")); });
     const toggle=()=>{ standId=open?null:id; render(); };
-    const meta=vet?E("div",{class:"meta",style:"color:var(--red)"},"VETOED BY "+vetoers(id).join(" & ").toUpperCase()+" · STARS RETURNED · "+fmtNum(o.s.reach)+" REACH")
+    const con=isContested(id), vwho=vetoers(id).join(" & ").toUpperCase(), cwho=contesters(id).join(" & ").toUpperCase(), vcol=con?"var(--amber)":"var(--red)";
+    const meta=vet?E("div",{class:"meta",style:"color:"+vcol},"VETOED BY "+vwho+(con?" · CONTESTED":"")+" · STARS RETURNED · "+fmtNum(o.s.reach)+" REACH")
       :isHP(f)?E("div",{class:"meta",style:"color:var(--red)"},"RANK "+o.rank+" · HAND PICKED · "+String(f.Badge).toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH")
       :E("div",{class:"meta",style:"color:"+tc},"RANK "+o.rank+" · "+o.tier.toUpperCase()+" · "+fmtNum(o.s.reach)+" REACH");
     const nameRow=E("div",{class:"nmrow"},E("div",{class:"nm"},f.Name),fp?E("span",{class:"fbox",title:"Falcon Prod Eligible"},"F"):null);
+    const vbtn=!vet?E("button",{class:"vetobtn",onclick:()=>setVeto(id)},"✕ VETO — SEND TO BOTTOM")
+      :myVeto(id)?E("button",{class:"vetobtn on",onclick:()=>setVeto(id)},"✕ VETOED — TAP TO RESTORE")
+      :E("button",{class:"contestbtn"+(myContest(id)?" on":""),onclick:()=>setContest(id)},myContest(id)?"⚑ VETOED / CONTESTED — WITHDRAW":"⚑ CONTEST THIS VETO");
     const detail=open?E("div",{class:"standdetail"},
       f.Headshot?E("div",{class:"standbigwrap"},E("img",{class:"standbig",src:encodeURI(f.Headshot),alt:f.Name})):null,
+      vet?E("div",{class:"standwho",style:"color:"+vcol},"VETOED BY "+vwho+(con?"   ·   CONTESTED BY "+cwho:"")):null,
       platformDrawer(f,o.s.reach),
       E("div",{class:"filmed"},(()=>{const fl=filmed(o.s.sceneDays);return E("span",{class:"dot",style:"background:"+fl.c+";color:"+fl.c});})(),filmed(o.s.sceneDays).t),
       linkChips(f),
       E("div",{class:"standacts"},
         E("button",{class:"fpbtn"+(fp?" on":""),onclick:()=>setFalconProd(id)},fp?"✦ FALCON PROD ELIGIBLE — ON":"✦ MARK FALCON PROD ELIGIBLE"),
-        E("button",{class:"vetobtn"+(myVeto(id)?" on":""),onclick:()=>setVeto(id)},myVeto(id)?"✕ VETOED — TAP TO RESTORE":"✕ VETO — SEND TO BOTTOM"))
+        vbtn)
     ):null;
-    wrap.append(E("div",{class:"srow"+(vet?" vetoed":"")+(open?" open":"")+(fp?" fprod":"")},
+    wrap.append(E("div",{class:"srow"+(vet?(con?" contested":" vetoed"):"")+(open?" open":"")+(fp?" fprod":"")},
       E("div",{class:"place"},vet?"—":String(i+1).padStart(2,"0")),
       E("div",{class:"shot",title:"Tap to expand",onclick:toggle},img,E("div",{class:"shotexp"},open?"–":"+")),
       E("div",{class:"idblock"},nameRow,meta,E("div",{class:"pill"},E("i",{style:"width:"+Math.min(100,total/maxTotal*100)+"%"}))),
